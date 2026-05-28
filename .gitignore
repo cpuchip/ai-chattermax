@@ -30,3 +30,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Claude Code grounding cache (session-local, not part of project state)
+.claude/cache/last-ground.txt
