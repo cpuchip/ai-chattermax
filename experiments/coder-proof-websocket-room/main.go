@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -29,6 +30,11 @@ func newHub() *Hub {
 		unregister: make(chan *Client),
 		broadcast:  make(chan []byte),
 	}
+}
+
+// ClientCount returns the number of currently connected clients.
+func (h *Hub) ClientCount() int {
+	return len(h.clients)
 }
 
 func (h *Hub) Run() {
@@ -106,12 +112,27 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	go client.readPump()
 }
 
+func serveHealthz(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	body, err := json.Marshal(struct {
+		Clients int `json:"clients"`
+	}{Clients: hub.ClientCount()})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
 func main() {
 	hub := newHub()
 	go hub.Run()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
+	})
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		serveHealthz(hub, w, r)
 	})
 
 	log.Println("Server starting on :8080")
