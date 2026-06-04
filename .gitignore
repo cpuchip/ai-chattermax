@@ -33,3 +33,10 @@ go.work.sum
 
 # Claude Code grounding cache (session-local, not part of project state)
 .claude/cache/last-ground.txt
+
+# Frontend
+frontend/dist/
+!frontend/dist/
+!frontend/dist/index.html
+!frontend/dist/.gitignore
+frontend/node_modules/

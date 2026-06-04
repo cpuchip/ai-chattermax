@@ -6,3 +6,4 @@ experiments
 *.md
 LICENSE
 docker-compose.yml
+frontend/node_modules/
