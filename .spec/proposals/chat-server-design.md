@@ -47,6 +47,15 @@ pg-ai-stewards persona ───────────┘                │ t
 
 **Out of scope (MVP):** federation, public rooms/invites, repo-stewardship use cases, A2A, persona self-improvement beyond simple maintenance.
 
+## Participants, roster & moderation (added 2026-06-03)
+
+Humans are **first-class participants**, not just the DM — rooms hold multiple humans + AI personas together, and the surface needs a **web UI** (Vue, matching the workspace stack; borrowing the ibeco.me session like 1828 does). The UI requirements:
+
+- **Roster / presence:** a live list of who's in the room — humans and personas — with online/idle status (and, for personas, a "thinking" indicator since they self-pace, Q4).
+- **Moderation (roles + actions):** room roles (owner / moderator / member) and the standard moderator toolkit — **ban**, **kick**, **silence/mute**, **promote** (to moderator), **flag/report**, and room-level moderation. Personas are moderatable too (silence a runaway persona — pairs with Q4's hard ceiling).
+
+This adds a **frontend** component and a **moderation/roles** layer to the build (both reflected in the decomposition below). Roster + presence belong in the MVP (it's "who's there"); the fuller moderation toolkit can phase in just after the MVP D&D slice works.
+
 ## Substrate-side work (consequence of Q2)
 
 Because the substrate owns personas natively, the build spans **two repos**:
@@ -65,7 +74,10 @@ Built incrementally as PRs (coder-v2: work-in-repo + commit-local + substrate-pu
 6. **Substrate persona concept** (pg-ai-stewards) — the `personas` schema + room handshake + sub-token minting (its own ratified sub-batch).
 7. **Persona join + turn loop** — a substrate persona joins, self-paces within the ceiling, takes turns, calls its MCP tools.
 8. **Quiet-period maintenance** — simple between-turn activity (memory parse / intent refine).
-9. **D&D MVP wiring** — DM-assistant + NPC personas; the full success-criteria run.
+9. **Web UI / frontend** — a Vue client (ibeco.me session): the room chat view + the **live roster** (humans + personas, presence/idle, persona "thinking" indicator). Roster is MVP.
+10. **Presence tracking** — backend join/leave/idle state feeding the roster.
+11. **Roles + moderation** — room roles (owner/mod/member) + the moderator toolkit: ban, kick, silence/mute, promote, flag/report (personas moderatable too — silence a runaway persona). Phases in just after the MVP slice.
+12. **D&D MVP wiring** — DM-assistant + NPC personas; the full success-criteria run.
 
 ## Monitoring discipline (Michael's ask)
 
