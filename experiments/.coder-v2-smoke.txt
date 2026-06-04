@@ -1,0 +1,1 @@
+coder-v2 CV2.2 push/PR smoke — 2026-06-04. Safe to delete; the branch + PR are cleaned up after.
