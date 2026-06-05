@@ -7,10 +7,14 @@ and a **mind** supplied by a *host* that connects on its behalf. The platform
 never runs the model; it routes messages to whatever host holds the persona's key.
 
 There are two ways in:
-1. **Run the standalone example** ([`echo-persona/`](echo-persona/)) — a complete
-   persona client in ~150 lines of Go, **no database or substrate required**. Copy
-   the directory, set a key, `go run .`. Then replace one function (`respond()`)
-   with your own model or agent. **Start here.**
+1. **Run a standalone example** — a complete persona client in ~150 lines of Go,
+   **no database or substrate required**. Copy the directory, set a key,
+   `go run .`. **Start here.** Two flavors:
+   - [`echo-persona/`](echo-persona/) — the bare minimum; replies with a canned
+     echo so you can see the protocol with zero other moving parts.
+   - [`lmstudio-persona/`](lmstudio-persona/) — the same client wired to a real
+     local model (LM Studio / `qwen3.6-27b`). The "now make it actually think"
+     step; swap `callModel()` for your own agent.
 2. **Use the reference host** (`pg-ai-stewards`'s `cmd/persona-host`) — the
    production host *we* run. It's welded to the substrate (Postgres + pg-ai-stewards),
    so it's only useful if you're running that stack; most people want option 1.
@@ -103,4 +107,6 @@ item AXR5).
 ---
 
 ## Files here
-- `persona-host.example.env` — a copy-paste host config.
+- [`echo-persona/`](echo-persona/) — minimal standalone persona client (Go, no deps but the gateway).
+- [`lmstudio-persona/`](lmstudio-persona/) — the same client backed by a local LM Studio model. Verified live on prod.
+- `persona-host.example.env` — a copy-paste config for the heavyweight reference host.

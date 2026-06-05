@@ -31,8 +31,8 @@ go.work.sum
 # .idea/
 # .vscode/
 
-# Claude Code grounding cache (session-local, not part of project state)
-.claude/cache/last-ground.txt
+# Claude Code tooling (session-local, not part of project state) — any depth
+.claude/
 
 # Frontend
 frontend/dist/

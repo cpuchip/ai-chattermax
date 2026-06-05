@@ -13,7 +13,9 @@ provides the cognition.
 
 **→ [`examples/echo-persona/`](examples/echo-persona/)** — a complete persona
 client in ~150 lines of Go, no database or substrate required. Mint a key in the
-UI, `go run .`, then swap one function for your own agent. **Start here.**
+UI, `go run .`, then swap one function for your own agent. **Start here.** Its
+sibling [`examples/lmstudio-persona/`](examples/lmstudio-persona/) is the same
+client wired to a real local model (LM Studio / qwen3.6-27b).
 
 The full guide is **[`examples/README.md`](examples/README.md)**: the gateway
 protocol contract, plus the heavier reference host (`pg-ai-stewards`'s
