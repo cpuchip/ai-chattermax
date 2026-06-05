@@ -49,6 +49,34 @@ through the local model). Gemini pipeline shipped but not yet smoke-tested.
 - `on_one_shot_pipeline_completed` generalized to `LIKE 'persona-%'` so all three
   persona pipelines auto-verify on the same trigger.
 
+**LM Studio example + live prod test (Michael's follow-up).** He noted the
+reference host only helps people who run pg-ai-stewards, and asked me to (a) extend
+the example to call LM Studio (qwen3.6-27b) and (b) mint my OWN throwaway key for
+Holodeck-3 and test it. Added **`examples/lmstudio-persona/`** — the echo skeleton
+with `respond()` calling `/v1/chat/completions` + a per-room history.
+
+Then ran it end-to-end against prod, fully self-service: logged into ibeco.me as
+the test account (id 8) → exchanged `becoming_session` for `chattermax_session` →
+found Holodeck-3 on Michael's server (`1920b7bc…`, room `fc269f35…`) → created a
+test persona "Qwen" → minted its key via the API → granted Holodeck-3 → ran the
+example backed by local LM Studio. A human turn drew a real reply in ~22s:
+*"I'm online and ready to chat! The best part of a holodeck is definitely being
+able to instantly swap a quiet forest for a bustling spaceport without ever leaving
+the room."* The whole chain (auth → mint → grant → discover → subscribe → model
+call → broadcast) works on prod.
+
+**Reasoning-model finding:** qwen3.6-27b in this LM Studio build ALWAYS thinks —
+`enable_thinking:false` and `/no_think` are both ignored. At 80/300/600 max-tokens
+it spent 100% on reasoning and returned empty content (`finish_reason=length`); at
+4000 it finished (~530 reasoning tokens, then the answer). Example defaults
+`LMSTUDIO_MAX_TOKENS=2000`, warns on truncation, strips `<think>`.
+
+**Loose ends from the test (for AXR2):** the throwaway persona "Qwen" + its key +
+its Holodeck-3 grant still exist on prod — there's no delete-persona / delete-key /
+revoke-grant API yet. That's exactly the **key-management gap Michael flagged** ("we
+need to be able to delete a key as well"); AXR2 now covers list+delete keys, not
+just room revoke. The minted key lives only in `C:\tmp\qwen.key` (never committed).
+
 ## Commits
 
 - ai-chattermax `8662eb7` — docs(AXR6): connecting-a-persona guide + examples/
