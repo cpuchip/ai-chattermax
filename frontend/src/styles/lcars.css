@@ -52,7 +52,7 @@ input, textarea { font-family: inherit; }
   display: grid;
   grid-template-columns: var(--rail) 1fr var(--roster);
   grid-template-rows: var(--topbar) 1fr;
-  height: 100vh;
+  height: 100dvh;
   gap: var(--gap);
   padding: var(--gap);
 }
@@ -156,7 +156,7 @@ input, textarea { font-family: inherit; }
 .cm-rempty { font-size: 0.75rem; color: var(--lcars-text-muted); padding: 4px 10px; }
 
 /* ===== Login ===== */
-.cm-login { display: flex; height: 100vh; align-items: center; justify-content: center; padding: 16px; }
+.cm-login { display: flex; height: 100dvh; align-items: center; justify-content: center; padding: 16px; }
 .cm-login-card { width: 100%; max-width: 380px; background: var(--lcars-panel); border-radius: var(--elbow) 6px 6px var(--elbow); padding: 0; overflow: hidden; border-left: 8px solid var(--lcars-orange); }
 .cm-login-head { background: var(--lcars-orange); color: var(--lcars-text-dark); padding: 14px 22px; font-family: var(--font-lcars); text-transform: uppercase; letter-spacing: 2px; }
 .cm-login-head small { display: block; font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 2px; opacity: 0.75; }
