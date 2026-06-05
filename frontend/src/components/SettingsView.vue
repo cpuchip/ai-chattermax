@@ -14,8 +14,9 @@ async function copyInvite() {
 const newName = ref('')
 const newHostRef = ref('dm-assistant')
 const busy = ref(false)
-const revealed = reactive<Record<string, string>>({})   // personaId -> raw key
-const grantSel = reactive<Record<string, string>>({})    // personaId -> roomId
+const revealed = reactive<Record<string, string>>({})     // personaId -> raw key
+const revealedRoom = reactive<Record<string, string>>({}) // personaId -> roomId the key was minted for
+const grantSel = reactive<Record<string, string>>({})     // personaId -> roomId
 const grantMsg = reactive<Record<string, string>>({})
 
 const mine = (ownerId: string) => state.me && ownerId === state.me.id
@@ -27,8 +28,15 @@ async function createPersona() {
   finally { busy.value = false }
 }
 async function mint(id: string) {
+  const room = grantSel[id] || state.rooms[0]?.id
+  if (!room) { grantMsg[id] = 'create a channel first'; return }
+  revealed[id] = ''
+  // Mint = grant the persona into the chosen channel AND issue its key, so the
+  // key is always usable (the two were separate steps and easy to miss).
+  try { await api.grantPersona(id, room) } catch { /* may already be granted */ }
   const r = await actions.mintKey(id)
   revealed[id] = r.key
+  revealedRoom[id] = room
 }
 async function grant(id: string) {
   const room = grantSel[id] || state.rooms[0]?.id
@@ -87,7 +95,7 @@ async function grant(id: string) {
               <option v-for="r in state.rooms" :key="r.id" :value="r.id">#{{ r.name }}</option>
             </select>
             <button class="cm-btn sm alt" @click="grant(p.id)">Grant</button>
-            <button class="cm-btn sm" @click="mint(p.id)">Mint key</button>
+            <button class="cm-btn sm" @click="mint(p.id)">Grant + mint key</button>
           </div>
           <span v-else class="pmeta">owned by another crew member</span>
         </div>
@@ -95,7 +103,8 @@ async function grant(id: string) {
         <div v-if="revealed[p.id]" class="cm-keybox">
           <div class="warn">⚠ Copy now — shown once</div>
           <code>{{ revealed[p.id] }}</code>
-          <p class="cm-hint">Configure your host: <span style="font-family:var(--font-mono)">{{ p.hostRef }}={{ revealed[p.id] }}@&lt;roomId&gt;</span></p>
+          <p class="cm-hint">Granted to a channel + key issued. Configure your host (CHATTERMAX_PERSONAS):</p>
+          <code style="margin-top:4px">{{ p.hostRef }}={{ revealed[p.id] }}@{{ revealedRoom[p.id] }}</code>
         </div>
       </div>
       <p v-if="!state.personas.length" class="cm-hint">No personas yet.</p>
