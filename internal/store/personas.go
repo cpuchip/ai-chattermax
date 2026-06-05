@@ -90,6 +90,16 @@ func (s *Store) MintPersonaKey(ctx context.Context, personaID, label string) (st
 	return raw, nil
 }
 
+// EnsureDevKey idempotently registers a fixed raw key for a persona (seed/dev
+// convenience — a stable key the persona-host can be configured with). Real
+// keys are random + UI-minted via MintPersonaKey.
+func (s *Store) EnsureDevKey(ctx context.Context, personaID, raw string) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO persona_keys (persona_id, key_hash, label) VALUES ($1, $2, 'dev-seed')
+		ON CONFLICT (key_hash) DO NOTHING`, personaID, hashKey(raw))
+	return err
+}
+
 // ValidatePersonaKey resolves a raw key to its persona (active, key not revoked),
 // touching last_used_at. ok=false when the key is unknown or revoked.
 func (s *Store) ValidatePersonaKey(ctx context.Context, raw string) (Persona, bool, error) {

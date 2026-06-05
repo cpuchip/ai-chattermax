@@ -23,6 +23,9 @@ type Service struct {
 	auth         Authenticator
 	cookieDomain string
 	cookieSecure bool
+	// OnLogin, if set, runs after a successful login (e.g. onboard the user into
+	// the demo server). Best-effort — errors are ignored.
+	OnLogin func(ctx context.Context, userID string)
 }
 
 // NewService builds the auth service.
@@ -50,6 +53,12 @@ func (s *Service) Required(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey, u)))
 	})
+}
+
+// UserFromRequest resolves the authenticated user from the session cookie, for
+// callers outside the middleware chain (e.g. the WebSocket gateway upgrade).
+func (s *Service) UserFromRequest(r *http.Request) (store.User, bool) {
+	return s.userFromCookie(r)
 }
 
 func (s *Service) userFromCookie(r *http.Request) (store.User, bool) {
@@ -85,6 +94,9 @@ func (s *Service) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "could not create session")
 		return
+	}
+	if s.OnLogin != nil {
+		s.OnLogin(r.Context(), user.ID)
 	}
 	s.setSessionCookie(w, token)
 	writeJSON(w, http.StatusOK, user)

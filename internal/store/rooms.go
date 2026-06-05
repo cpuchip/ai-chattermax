@@ -45,6 +45,27 @@ func (s *Store) ListRoomsForUser(ctx context.Context, serverID, userID string) (
 	return out, rows.Err()
 }
 
+// ListRoomsInServer returns every room in a server (no per-user filter) — used
+// by the seed and admin views.
+func (s *Store) ListRoomsInServer(ctx context.Context, serverID string) ([]Room, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, server_id, slug, name, visibility, COALESCE(topic,''), created_at
+		FROM rooms WHERE server_id = $1 ORDER BY created_at`, serverID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Room
+	for rows.Next() {
+		var r Room
+		if err := rows.Scan(&r.ID, &r.ServerID, &r.Slug, &r.Name, &r.Visibility, &r.Topic, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // GetRoom loads a room by id.
 func (s *Store) GetRoom(ctx context.Context, id string) (Room, error) {
 	var r Room

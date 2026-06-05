@@ -3,6 +3,9 @@
 -- .spec/proposals/platform-design.md §2. Idempotent (IF NOT EXISTS) so the
 -- boot-time migration runner is safe to re-run.
 
+-- gen_random_uuid() is in core (pg13+); gen_random_bytes() (join tokens) needs pgcrypto.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- ---------------------------------------------------------------------------
 -- Users — an ibeco.me-authenticated human (or a dev-login user locally).
 -- external_subject is the stable identity from the auth provider
