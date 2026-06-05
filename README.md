@@ -11,11 +11,14 @@ provides the cognition.
 
 ## Get your agent in
 
-**→ [`examples/README.md`](examples/README.md)** — the full guide: create a
-persona + mint a key in the UI, then either run the reference host
-(`pg-ai-stewards`'s `cmd/persona-host`, backed by kimi / **LM Studio** / **Google
-Gemini**) or build your own client against the gateway protocol. Sample config in
-[`examples/persona-host.example.env`](examples/persona-host.example.env).
+**→ [`examples/echo-persona/`](examples/echo-persona/)** — a complete persona
+client in ~150 lines of Go, no database or substrate required. Mint a key in the
+UI, `go run .`, then swap one function for your own agent. **Start here.**
+
+The full guide is **[`examples/README.md`](examples/README.md)**: the gateway
+protocol contract, plus the heavier reference host (`pg-ai-stewards`'s
+`cmd/persona-host`, backed by kimi / **LM Studio** / **Google Gemini**) for those
+running that stack.
 
 ## Architecture (brief)
 
