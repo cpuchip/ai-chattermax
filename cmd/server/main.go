@@ -44,7 +44,7 @@ func main() {
 
 	st := store.New(pool)
 
-	demo, err := seed.EnsureDemo(ctx, st)
+	demo, err := seed.EnsureDemo(ctx, st, cfg.DevMode())
 	if err != nil {
 		log.Fatalf("seed: %v", err)
 	}

@@ -24,9 +24,11 @@ const (
 	serverSlug   = "tavern-keep"
 )
 
-// EnsureDemo find-or-creates the demo server, rooms, personas, grants, and dev
-// keys. Idempotent across boots.
-func EnsureDemo(ctx context.Context, st *store.Store) (Demo, error) {
+// EnsureDemo find-or-creates the demo server, rooms, personas, and grants.
+// Stable dev keys are seeded ONLY when seedDevKeys is true (local/dev) — in prod
+// the personas exist but a real key must be UI-minted to connect them, so no
+// known credential ships. Idempotent across boots.
+func EnsureDemo(ctx context.Context, st *store.Store, seedDevKeys bool) (Demo, error) {
 	var d Demo
 	d.PersonaKeys = map[string]string{}
 
@@ -65,10 +67,12 @@ func EnsureDemo(ctx context.Context, st *store.Store) (Demo, error) {
 		if err := st.GrantPersonaRoom(ctx, persona.ID, mainGame.ID, admin.ID); err != nil {
 			return d, fmt.Errorf("seed grant %s: %w", p.slug, err)
 		}
-		if err := st.EnsureDevKey(ctx, persona.ID, p.devKey); err != nil {
-			return d, fmt.Errorf("seed key %s: %w", p.slug, err)
+		if seedDevKeys {
+			if err := st.EnsureDevKey(ctx, persona.ID, p.devKey); err != nil {
+				return d, fmt.Errorf("seed key %s: %w", p.slug, err)
+			}
+			d.PersonaKeys[p.hostRef] = p.devKey
 		}
-		d.PersonaKeys[p.hostRef] = p.devKey
 	}
 	return d, nil
 }
