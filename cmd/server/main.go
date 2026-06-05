@@ -38,6 +38,18 @@ func generateClientID() string {
 	return fmt.Sprintf("client-%d", clientIDCounter.Add(1))
 }
 
+// kindFromQuery maps the optional ?kind= query param to a presence kind. A
+// persona-host connects with kind=persona (or agent) so the roster shows it as
+// an agent rather than a human; anything else defaults to human.
+func kindFromQuery(raw string) presence.Kind {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "persona", "agent":
+		return presence.Persona
+	default:
+		return presence.Human
+	}
+}
+
 // withSPA wraps an API handler with static-file serving and SPA history fallback.
 // API routes (/healthz, /roster/, /ws/) are passed through untouched.
 func withSPA(api http.Handler, staticFS fs.FS) http.Handler {
@@ -146,6 +158,7 @@ func newMux(hub *room.Hub, sched *scheduler.Scheduler, store transcript.Store, t
 		if clientID == "" {
 			clientID = generateClientID()
 		}
+		kind := kindFromQuery(r.URL.Query().Get("kind"))
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -157,7 +170,7 @@ func newMux(hub *room.Hub, sched *scheduler.Scheduler, store transcript.Store, t
 		client := &wsClient{id: clientID, conn: conn}
 
 		hub.Register(roomID, client)
-		tracker.Join(clientID, presence.Human)
+		tracker.Join(clientID, kind)
 		sched.AddParticipant(clientID)
 		defer func() {
 			hub.Unregister(roomID, client)
