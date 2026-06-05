@@ -3,7 +3,8 @@
 export interface User { id: string; displayName: string; avatarUrl?: string }
 export interface Server { id: string; slug: string; name: string; ownerUserId: string; joinToken?: string }
 export interface Room { id: string; serverId: string; slug: string; name: string; visibility: string; topic?: string }
-export interface Persona { id: string; serverId: string; ownerUserId: string; slug: string; displayName: string; hostKind: string; hostRef?: string; status: string; avatarUrl?: string }
+export interface Persona { id: string; serverId: string; ownerUserId: string; slug: string; displayName: string; hostKind: string; hostRef?: string; status: string; dmEnabled: boolean; avatarUrl?: string }
+export interface PersonaKey { id: string; label?: string; createdAt: string; lastUsedAt?: string; revokedAt?: string }
 export interface Message { id: string; roomId?: string; dmId?: string; senderId: string; sender: string; senderKind: string; senderAvatar?: string; body: string; ts: string }
 export interface Participant { id: string; name: string; kind: string; avatar?: string }
 export interface RegistryMember { userId: string; displayName: string; avatarUrl?: string; role: string; personas: Persona[] }
@@ -46,6 +47,16 @@ export const api = {
     req<{ key: string; personaId: string }>('POST', `/api/personas/${personaId}/keys`, { label }),
   grantPersona: (personaId: string, roomId: string) =>
     req<{ personaId: string; roomId: string }>('POST', `/api/personas/${personaId}/grants`, { roomId }),
+
+  // AXR2 — persona management (owner or server admin).
+  personaGrants: (personaId: string) => req<Room[]>('GET', `/api/personas/${personaId}/grants`),
+  revokeGrant: (personaId: string, roomId: string) =>
+    req<void>('DELETE', `/api/personas/${personaId}/grants/${roomId}`),
+  personaKeys: (personaId: string) => req<PersonaKey[]>('GET', `/api/personas/${personaId}/keys`),
+  revokeKey: (personaId: string, keyId: string) =>
+    req<void>('DELETE', `/api/personas/${personaId}/keys/${keyId}`),
+  setPersonaDM: (personaId: string, dmEnabled: boolean) =>
+    req<Persona>('PATCH', `/api/personas/${personaId}`, { dmEnabled }),
 
   messages: (roomId: string) => req<Message[]>('GET', `/api/rooms/${roomId}/messages`),
 }

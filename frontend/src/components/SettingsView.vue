@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { state, actions } from '../store'
-import { api } from '../api'
+import { api, type Room, type PersonaKey, type Persona } from '../api'
 
 const inviteLink = computed(() =>
   state.currentServerToken ? `${location.origin}/?join=${state.currentServerToken}` : '')
@@ -41,9 +41,36 @@ async function mint(id: string) {
 async function grant(id: string) {
   const room = grantSel[id] || state.rooms[0]?.id
   if (!room) { grantMsg[id] = 'create a channel first'; return }
-  try { await api.grantPersona(id, room); grantMsg[id] = 'granted to #' + (state.rooms.find(r => r.id === room)?.name ?? '') }
+  try { await api.grantPersona(id, room); grantMsg[id] = 'granted to #' + (state.rooms.find(r => r.id === room)?.name ?? ''); if (manageOpen[id]) loadManage(id) }
   catch (e) { grantMsg[id] = (e as Error).message }
 }
+
+// --- AXR2: manage panel (grants, keys, DM) ---------------------------------
+const manageOpen = reactive<Record<string, boolean>>({})
+const grants = reactive<Record<string, Room[]>>({})
+const keys = reactive<Record<string, PersonaKey[]>>({})
+
+function toggleManage(id: string) {
+  manageOpen[id] = !manageOpen[id]
+  if (manageOpen[id] && !grants[id]) loadManage(id)
+}
+async function loadManage(id: string) {
+  try { grants[id] = await api.personaGrants(id) } catch { grants[id] = [] }
+  try { keys[id] = await api.personaKeys(id) } catch { keys[id] = [] }
+}
+async function revokeGrant(id: string, roomId: string, name: string) {
+  if (!confirm(`Revoke #${name} from this persona? Its host will lose access to that channel.`)) return
+  await api.revokeGrant(id, roomId); loadManage(id)
+}
+async function revokeKey(id: string, keyId: string) {
+  if (!confirm('Revoke this key? Any host using it is disconnected immediately and cannot reconnect.')) return
+  await api.revokeKey(id, keyId); loadManage(id)
+}
+async function toggleDM(p: Persona) {
+  try { const np = await api.setPersonaDM(p.id, !p.dmEnabled); p.dmEnabled = np.dmEnabled }
+  catch { /* ignore */ }
+}
+const fmtDate = (s?: string) => (s ? new Date(s).toLocaleString() : '')
 </script>
 
 <template>
@@ -96,6 +123,7 @@ async function grant(id: string) {
             </select>
             <button class="cm-btn sm alt" @click="grant(p.id)">Grant</button>
             <button class="cm-btn sm" @click="mint(p.id)">Grant + mint key</button>
+            <button class="cm-btn sm alt" @click="toggleManage(p.id)">{{ manageOpen[p.id] ? 'Close' : 'Manage' }}</button>
           </div>
           <span v-else class="pmeta">owned by another crew member</span>
         </div>
@@ -103,8 +131,36 @@ async function grant(id: string) {
         <div v-if="revealed[p.id]" class="cm-keybox">
           <div class="warn">⚠ Copy now — shown once</div>
           <code>{{ revealed[p.id] }}</code>
-          <p class="cm-hint">Granted to a channel + key issued. Configure your host (CHATTERMAX_PERSONAS):</p>
-          <code style="margin-top:4px">{{ p.hostRef }}={{ revealed[p.id] }}@{{ revealedRoom[p.id] }}</code>
+          <p class="cm-hint">Key issued + granted. Give it to your host (it discovers granted channels itself — see <code>examples/</code>):</p>
+          <code style="margin-top:4px">CHATTERMAX_PERSONAS={{ p.hostRef || 'my-bot' }}={{ revealed[p.id] }}</code>
+        </div>
+
+        <!-- AXR2: manage grants, keys, DM (owner/admin) -->
+        <div v-if="mine(p.ownerUserId) && manageOpen[p.id]" class="cm-manage">
+          <label class="cm-check">
+            <input type="checkbox" :checked="p.dmEnabled" @change="toggleDM(p)" />
+            Allow direct messages to this persona
+          </label>
+
+          <label class="cm-label" style="margin-top:12px">Granted channels</label>
+          <div v-if="!grants[p.id]?.length" class="cm-hint">Not in any channel yet.</div>
+          <div v-for="r in grants[p.id]" :key="r.id" class="cm-mrow">
+            <span style="flex:1">#{{ r.name }}</span>
+            <button class="cm-btn xs danger" @click="revokeGrant(p.id, r.id, r.name)">Revoke</button>
+          </div>
+
+          <label class="cm-label" style="margin-top:14px">Keys</label>
+          <div v-if="!keys[p.id]?.length" class="cm-hint">No keys minted.</div>
+          <div v-for="k in keys[p.id]" :key="k.id" class="cm-mrow">
+            <div style="flex:1;min-width:0">
+              <span>{{ k.label || 'key' }}</span>
+              <span class="pmeta">
+                {{ k.revokedAt ? 'revoked ' + fmtDate(k.revokedAt) : (k.lastUsedAt ? 'last used ' + fmtDate(k.lastUsedAt) : 'never used') }}
+              </span>
+            </div>
+            <button v-if="!k.revokedAt" class="cm-btn xs danger" @click="revokeKey(p.id, k.id)">Revoke</button>
+            <span v-else class="pmeta">revoked</span>
+          </div>
         </div>
       </div>
       <p v-if="!state.personas.length" class="cm-hint">No personas yet.</p>

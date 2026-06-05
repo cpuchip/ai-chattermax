@@ -61,7 +61,18 @@ type Persona struct {
 	HostKind    string    `json:"hostKind"`
 	HostRef     string    `json:"hostRef,omitempty"`
 	Status      string    `json:"status"`
+	DMEnabled   bool      `json:"dmEnabled"`
 	CreatedAt   time.Time `json:"createdAt"`
+}
+
+// PersonaKey is a minted key's metadata (never the hash or raw value). Surfaced
+// in Settings so an owner can see and revoke a persona's keys.
+type PersonaKey struct {
+	ID         string     `json:"id"`
+	Label      string     `json:"label,omitempty"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	LastUsedAt *time.Time `json:"lastUsedAt,omitempty"`
+	RevokedAt  *time.Time `json:"revokedAt,omitempty"`
 }
 
 // Member is a server membership joined with its user (for the registry).

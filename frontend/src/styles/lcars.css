@@ -198,6 +198,14 @@ input, textarea { font-family: inherit; }
 .cm-hint { font-size: 0.8rem; color: var(--lcars-text-muted); margin-top: 6px; }
 .cm-formrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-top: 8px; }
 .cm-formrow > div { flex: 1; min-width: 140px; }
+.cm-btn.xs { width: auto; margin: 0; padding: 4px 10px; font-size: 0.7rem; border-radius: 6px; }
+.cm-btn.danger { background: var(--lcars-red); color: var(--lcars-text-dark); }
+.cm-btn.danger:hover { background: #ff7a6b; }
+.cm-manage { margin-top: 12px; padding-top: 12px; border-top: 1px solid #222; }
+.cm-check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--lcars-read); cursor: pointer; }
+.cm-check input { width: 16px; height: 16px; accent-color: var(--lcars-orange); }
+.cm-mrow { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--lcars-panel); border-radius: 6px; font-size: 0.85rem; color: var(--lcars-read); margin-bottom: 4px; }
+.cm-mrow .pmeta { font-family: var(--font-mono); font-size: 0.62rem; color: var(--lcars-text-muted); display: block; }
 
 /* ===== Mobile ===== */
 .cm-scrim { display: none; }

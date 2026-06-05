@@ -27,7 +27,7 @@ import (
 
 // buildTag is surfaced at GET /api/version so a deploy's freshness is verifiable
 // (Dokploy has silently served stale binaries). Bump it with backend changes.
-const buildTag = "multiroom-2026-06-05"
+const buildTag = "axr2-persona-mgmt-2026-06-05"
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)

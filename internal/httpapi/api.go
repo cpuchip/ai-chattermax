@@ -37,8 +37,13 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/servers/{id}/registry", a.registry)
 	mux.HandleFunc("GET /api/servers/{id}/personas", a.listPersonas)
 	mux.HandleFunc("POST /api/servers/{id}/personas", a.createPersona)
+	mux.HandleFunc("PATCH /api/personas/{id}", a.updatePersona)
+	mux.HandleFunc("GET /api/personas/{id}/keys", a.listPersonaKeys)
 	mux.HandleFunc("POST /api/personas/{id}/keys", a.mintKey)
+	mux.HandleFunc("DELETE /api/personas/{id}/keys/{keyId}", a.revokePersonaKey)
+	mux.HandleFunc("GET /api/personas/{id}/grants", a.listPersonaGrants)
 	mux.HandleFunc("POST /api/personas/{id}/grants", a.grantPersona)
+	mux.HandleFunc("DELETE /api/personas/{id}/grants/{roomId}", a.revokePersonaGrant)
 	mux.HandleFunc("GET /api/rooms/{id}/messages", a.roomMessages)
 	mux.HandleFunc("GET /api/rooms/{id}/search", a.roomSearch)
 }
@@ -321,6 +326,106 @@ func (a *API) grantPersona(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]string{"personaId": personaID, "roomId": in.RoomID})
+}
+
+// canManagePersona loads a persona and confirms the user may manage it (its
+// owner, or a server owner/admin). Writes the error + returns ok=false otherwise.
+func (a *API) canManagePersona(w http.ResponseWriter, r *http.Request, personaID string) (store.Persona, bool) {
+	u, _ := auth.UserFrom(r.Context())
+	p, err := a.store.GetPersona(r.Context(), personaID)
+	if err != nil {
+		writeErr(w, 404, "persona not found")
+		return store.Persona{}, false
+	}
+	role, ok := a.member(w, r, p.ServerID, u.ID)
+	if !ok {
+		return store.Persona{}, false
+	}
+	if p.OwnerUserID != u.ID && role != "owner" && role != "admin" {
+		writeErr(w, 403, "not allowed to manage this persona")
+		return store.Persona{}, false
+	}
+	return p, true
+}
+
+// updatePersona patches mutable persona fields (currently dmEnabled).
+func (a *API) updatePersona(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.canManagePersona(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	var in struct {
+		DMEnabled *bool `json:"dmEnabled"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.DMEnabled != nil {
+		if err := a.store.SetPersonaDMEnabled(r.Context(), p.ID, *in.DMEnabled); err != nil {
+			writeErr(w, 500, "could not update persona")
+			return
+		}
+	}
+	np, err := a.store.GetPersona(r.Context(), p.ID)
+	if err != nil {
+		writeErr(w, 500, "could not reload persona")
+		return
+	}
+	writeJSON(w, 200, np)
+}
+
+// listPersonaKeys returns a persona's keys (metadata only — never the raw key).
+func (a *API) listPersonaKeys(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.canManagePersona(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	keys, err := a.store.ListPersonaKeys(r.Context(), p.ID)
+	if err != nil {
+		writeErr(w, 500, "could not list keys")
+		return
+	}
+	writeJSON(w, 200, orEmpty(keys))
+}
+
+// revokePersonaKey soft-revokes a key so it stops validating.
+func (a *API) revokePersonaKey(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.canManagePersona(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := a.store.RevokePersonaKey(r.Context(), p.ID, r.PathValue("keyId")); err != nil {
+		writeErr(w, 500, "could not revoke key")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// listPersonaGrants returns the rooms a persona is granted into.
+func (a *API) listPersonaGrants(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.canManagePersona(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	rooms, err := a.store.PersonaRooms(r.Context(), p.ID)
+	if err != nil {
+		writeErr(w, 500, "could not list grants")
+		return
+	}
+	writeJSON(w, 200, orEmpty(rooms))
+}
+
+// revokePersonaGrant removes a persona's grant to a room.
+func (a *API) revokePersonaGrant(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.canManagePersona(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := a.store.RevokePersonaRoom(r.Context(), p.ID, r.PathValue("roomId")); err != nil {
+		writeErr(w, 500, "could not revoke grant")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // --- registry ---------------------------------------------------------------
