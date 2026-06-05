@@ -25,6 +25,10 @@ import (
 	"github.com/cpuchip/ai-chattermax/internal/store"
 )
 
+// buildTag is surfaced at GET /api/version so a deploy's freshness is verifiable
+// (Dokploy has silently served stale binaries). Bump it with backend changes.
+const buildTag = "multiroom-2026-06-05"
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
 	log.SetPrefix("chattermax: ")
@@ -100,6 +104,11 @@ func main() {
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 	root.HandleFunc("GET /api/config", api.ConfigHandler)
+	root.HandleFunc("GET /api/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"build":"` + buildTag + `"}`))
+	})
+	root.HandleFunc("GET /api/persona/rooms", api.PersonaRoomsHandler) // persona-key auth
 	root.HandleFunc("POST /api/auth/login", authService.LoginHandler)
 	root.HandleFunc("POST /api/auth/logout", authService.LogoutHandler)
 	root.Handle("GET /gateway", gw)
