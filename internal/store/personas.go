@@ -142,6 +142,35 @@ func (s *Store) PersonaGrantedRooms(ctx context.Context, personaID string) ([]st
 	return out, rows.Err()
 }
 
+// PersonaRooms returns the rooms a persona is granted into, with details — so a
+// persona-host can subscribe to all of them and a model can see its access.
+func (s *Store) PersonaRooms(ctx context.Context, personaID string) ([]Room, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT r.id, r.server_id, r.slug, r.name, r.visibility, COALESCE(r.topic,''), r.created_at
+		FROM persona_room_grants g JOIN rooms r ON r.id = g.room_id
+		WHERE g.persona_id = $1
+		ORDER BY r.created_at`, personaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Room
+	for rows.Next() {
+		var r Room
+		if err := rows.Scan(&r.ID, &r.ServerID, &r.Slug, &r.Name, &r.Visibility, &r.Topic, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// RevokePersonaRoom removes a persona's grant to a room.
+func (s *Store) RevokePersonaRoom(ctx context.Context, personaID, roomID string) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM persona_room_grants WHERE persona_id = $1 AND room_id = $2`, personaID, roomID)
+	return err
+}
+
 // PersonaCanAccessRoom reports whether a persona is granted into a room.
 func (s *Store) PersonaCanAccessRoom(ctx context.Context, personaID, roomID string) (bool, error) {
 	var ok bool

@@ -43,6 +43,31 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/rooms/{id}/search", a.roomSearch)
 }
 
+// PersonaRoomsHandler is authed by a PERSONA KEY (not the user cookie): a host
+// presents its key and gets the persona's granted rooms, so it can subscribe to
+// all of them and a model can see its own access. Registered as a public route
+// (it does its own auth). Key via ?key= or "Authorization: Bearer <key>".
+func (a *API) PersonaRoomsHandler(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		key = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	}
+	p, ok, err := a.store.ValidatePersonaKey(r.Context(), strings.TrimSpace(key))
+	if err != nil || !ok {
+		writeErr(w, 401, "invalid persona key")
+		return
+	}
+	rooms, err := a.store.PersonaRooms(r.Context(), p.ID)
+	if err != nil {
+		writeErr(w, 500, "could not load rooms")
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"persona": map[string]string{"slug": p.Slug, "displayName": p.DisplayName},
+		"rooms":   orEmpty(rooms),
+	})
+}
+
 // ConfigHandler is public — tells the client which auth mode is in effect.
 func (a *API) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"authMode": a.authMode})
