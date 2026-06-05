@@ -11,8 +11,36 @@
 - Sensible defaults for every open question — recorded in "Decisions made" below.
 - Only substrate touch: persona-host turn loop → gateway+key. Nothing destructive.
 
-## Decisions made (defaults chosen while Michael sleeps — review these)
-- (fill in as I go)
+## STAGE 1 COMPLETE — 2026-06-05 (built overnight, deploy = Michael's Hinge)
+
+All S1.1–S1.14 done except the production deploy, which is **PR #21** (merge to
+`main` = Dokploy auto-deploy). The platform is built, tested, e2e-proven, and the
+prod Docker image is boot-verified in ibeco config. The one thing I could not
+verify alone — a real ibeco.me login (needs Michael's `becoming_session` +
+cross-domain cookie) — is the PR's single pre-merge check.
+
+## Decisions made (defaults chosen while Michael slept — review these)
+- **Postgres 18 + pgcrypto** (join tokens). FTS via generated tsvector + GIN.
+- **Auth**: platform runs its OWN `chattermax_session` after a `dev` name-login or
+  the `ibeco` `GET /api/me` handshake. RFC 6265 §5.3 host-only eviction included.
+- **Split persona model**: platform owns membership + mints the key; pg-ai-stewards
+  owns the mind. Persona-host adapted to the gateway (humans-only via senderKind).
+- **Gateway**: broadcast-except-sender (AX3-2 carried), history-on-join, ping/pong
+  keepalive, drop-on-full-buffer for slow clients.
+- **Onboarding (v1)**: every login auto-joins the demo "Tavern Keep" server.
+- **Dev keys**: seeded ONLY in dev mode → prod ships no known credential.
+- **Deploy = Hinge**: did NOT auto-deploy; can't verify ibeco login unattended,
+  won't swap the live site onto an unverified auth path. PR #21.
+- **DEFERRED (flagged)**: per-message rate ceiling (runaway backstop) not yet
+  re-wired into the gateway; DMs/sub-personas/multi-server-join-UI = later stages.
+
+## Gotchas hit (for next time)
+- Windows: `pkill -f` does NOT kill the .exe; use `taskkill //F //IM name.exe`.
+  (Cost me a confused "stale embed" detour — it was an old process holding the port.)
+- `gen_random_bytes` needs `CREATE EXTENSION pgcrypto`; `gen_random_uuid` is core.
+- pgx uuid columns reject `''` — never pass an empty string for a uuid filter.
+- Transient empty kimi completion surfaced as a turn error (handled); the model
+  path is healthy (verified via a direct substrate probe).
 
 ## Stage 1 checklist
 - [ ] S1.1 schema + migrations (Postgres 18, FTS)
