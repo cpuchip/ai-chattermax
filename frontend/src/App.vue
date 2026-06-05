@@ -1,32 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import JoinScreen from './components/JoinScreen.vue'
-import RoomView from './components/RoomView.vue'
+import { onMounted } from 'vue'
+import { state, actions } from './store'
+import Login from './components/Login.vue'
+import Shell from './components/Shell.vue'
 
-interface JoinInfo {
-  displayName: string
-  room: string
-}
-
-const joined = ref<JoinInfo | null>(null)
-
-function onJoin(info: JoinInfo) {
-  joined.value = info
-}
-
-function onLeave() {
-  joined.value = null
-}
+onMounted(() => actions.init())
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 text-gray-900">
-    <JoinScreen v-if="!joined" @join="onJoin" />
-    <RoomView
-      v-else
-      :display-name="joined.displayName"
-      :room="joined.room"
-      @leave="onLeave"
-    />
+  <div class="h-screen w-screen overflow-hidden bg-slate-900 text-slate-100">
+    <div v-if="state.loading" class="flex h-full items-center justify-center text-slate-400">
+      <span class="animate-pulse">Loading…</span>
+    </div>
+    <Login v-else-if="!state.me" />
+    <Shell v-else />
   </div>
 </template>

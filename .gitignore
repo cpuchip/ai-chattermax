@@ -40,3 +40,6 @@ frontend/dist/
 !frontend/dist/index.html
 !frontend/dist/.gitignore
 frontend/node_modules/
+
+# local browser-automation artifacts
+.playwright-cli/
