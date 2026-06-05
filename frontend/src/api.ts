@@ -1,0 +1,50 @@
+// REST client for the platform API. All requests send the session cookie.
+
+export interface User { id: string; displayName: string; avatarUrl?: string }
+export interface Server { id: string; slug: string; name: string; ownerUserId: string }
+export interface Room { id: string; serverId: string; slug: string; name: string; visibility: string; topic?: string }
+export interface Persona { id: string; serverId: string; ownerUserId: string; slug: string; displayName: string; hostKind: string; hostRef?: string; status: string; avatarUrl?: string }
+export interface Message { id: string; roomId?: string; dmId?: string; senderId: string; sender: string; senderKind: string; senderAvatar?: string; body: string; ts: string }
+export interface Participant { id: string; name: string; kind: string; avatar?: string }
+export interface RegistryMember { userId: string; displayName: string; avatarUrl?: string; role: string; personas: Persona[] }
+
+async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    credentials: 'include',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) {
+    const msg = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(msg.error || `request failed (${res.status})`)
+  }
+  if (res.status === 204) return undefined as T
+  return res.json() as Promise<T>
+}
+
+export const api = {
+  config: () => req<{ authMode: string }>('GET', '/api/config'),
+  me: () => req<User>('GET', '/api/me'),
+  login: (name?: string) => req<User>('POST', '/api/auth/login', name ? { name } : {}),
+  logout: () => req<void>('POST', '/api/auth/logout'),
+
+  servers: () => req<Server[]>('GET', '/api/servers'),
+  createServer: (name: string) => req<Server>('POST', '/api/servers', { name }),
+  joinServer: (token: string) => req<Server>('POST', '/api/servers/join', { token }),
+
+  rooms: (serverId: string) => req<Room[]>('GET', `/api/servers/${serverId}/rooms`),
+  createRoom: (serverId: string, name: string, visibility: string) =>
+    req<Room>('POST', `/api/servers/${serverId}/rooms`, { name, visibility }),
+
+  registry: (serverId: string) => req<RegistryMember[]>('GET', `/api/servers/${serverId}/registry`),
+  personas: (serverId: string) => req<Persona[]>('GET', `/api/servers/${serverId}/personas`),
+  createPersona: (serverId: string, displayName: string, hostRef: string) =>
+    req<Persona>('POST', `/api/servers/${serverId}/personas`, { displayName, hostRef }),
+  mintKey: (personaId: string, label?: string) =>
+    req<{ key: string; personaId: string }>('POST', `/api/personas/${personaId}/keys`, { label }),
+  grantPersona: (personaId: string, roomId: string) =>
+    req<{ personaId: string; roomId: string }>('POST', `/api/personas/${personaId}/grants`, { roomId }),
+
+  messages: (roomId: string) => req<Message[]>('GET', `/api/rooms/${roomId}/messages`),
+}
