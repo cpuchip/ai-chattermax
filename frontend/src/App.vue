@@ -8,11 +8,9 @@ onMounted(() => actions.init())
 </script>
 
 <template>
-  <div class="h-screen w-screen overflow-hidden bg-slate-900 text-slate-100">
-    <div v-if="state.loading" class="flex h-full items-center justify-center text-slate-400">
-      <span class="animate-pulse">Loading…</span>
-    </div>
-    <Login v-else-if="!state.me" />
-    <Shell v-else />
+  <div v-if="state.loading" class="cm-login">
+    <span style="color: var(--lcars-text-muted); font-family: var(--font-lcars); letter-spacing: 2px">INITIALIZING…</span>
   </div>
+  <Login v-else-if="!state.me" />
+  <Shell v-else />
 </template>

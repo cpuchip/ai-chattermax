@@ -1,25 +1,45 @@
 <script setup lang="ts">
-import ServerRail from './ServerRail.vue'
-import ChannelColumn from './ChannelColumn.vue'
+import { computed } from 'vue'
+import { state, actions } from '../store'
+import Sidebar from './Sidebar.vue'
 import RoomView from './RoomView.vue'
 import RosterPanel from './RosterPanel.vue'
-import { state } from '../store'
+import SettingsView from './SettingsView.vue'
+
+const room = computed(() => actions.currentRoom())
+const onlineCount = computed(() => (state.roster[state.currentRoomId] ?? []).length)
 </script>
 
 <template>
-  <div class="flex h-full">
-    <ServerRail />
-    <ChannelColumn />
-    <main class="flex min-w-0 flex-1 flex-col bg-slate-850">
-      <RoomView v-if="state.currentRoomId" />
-      <div v-else class="flex flex-1 items-center justify-center text-slate-500">
-        <p>Pick a channel to start — or create one.</p>
+  <div class="cm-app">
+    <header class="cm-topbar">
+      <button class="cm-iconbtn" @click="actions.toggleDrawer()" aria-label="Menu">☰</button>
+      <div class="cm-elbow">
+        <span class="cm-brand">AI Chattermax<small>{{ actions.currentServer()?.name ?? '—' }}</small></span>
       </div>
-    </main>
-    <RosterPanel v-if="state.currentRoomId" />
+      <span class="cm-brand-m">{{ room ? '#' + room.name : (actions.currentServer()?.name ?? 'AI Chattermax') }}</span>
+      <div class="cm-rail">
+        <span class="cm-bar b1" />
+        <span class="cm-bar b2" />
+        <span class="cm-bar b3" />
+        <span class="cm-readout">
+          <span class="dot" :class="state.connected ? 'on' : 'off'" />{{ state.connected ? 'LINK OK' : 'LINK…' }}
+          <template v-if="room"> · {{ room.name.toUpperCase() }}</template>
+        </span>
+      </div>
+      <button class="cm-iconbtn" @click="actions.toggleRoster()" aria-label="Roster">👥</button>
+    </header>
+
+    <Sidebar />
+
+    <RoomView v-if="state.ui.view === 'chat' && state.currentRoomId" />
+    <SettingsView v-else-if="state.ui.view === 'settings'" />
+    <section v-else class="cm-main">
+      <p class="cm-empty" style="margin:auto">Pick a channel to begin.</p>
+    </section>
+
+    <RosterPanel />
+
+    <div class="cm-scrim" :class="{ show: state.ui.drawer || state.ui.rosterOpen }" @click="actions.closeDrawers()" />
   </div>
 </template>
-
-<style scoped>
-.bg-slate-850 { background-color: #18212f; }
-</style>

@@ -18,6 +18,7 @@ interface State {
   messages: Record<string, Message[]>
   roster: Record<string, Participant[]>
   error: string
+  ui: { drawer: boolean; rosterOpen: boolean; view: 'chat' | 'settings' }
 }
 
 export const state = reactive<State>({
@@ -34,6 +35,7 @@ export const state = reactive<State>({
   messages: {},
   roster: {},
   error: '',
+  ui: { drawer: false, rosterOpen: false, view: 'chat' },
 })
 
 let gateway: Gateway | null = null
@@ -105,9 +107,16 @@ export const actions = {
 
   selectRoom(id: string) {
     state.currentRoomId = id
-    if (!state.messages[id]) gateway?.subscribe(id)
-    else gateway?.subscribe(id) // idempotent server-side; ensures presence
+    gateway?.subscribe(id) // idempotent server-side; ensures presence + history
+    state.ui.view = 'chat'
+    state.ui.drawer = false
   },
+
+  toggleDrawer() { state.ui.drawer = !state.ui.drawer; if (state.ui.drawer) state.ui.rosterOpen = false },
+  toggleRoster() { state.ui.rosterOpen = !state.ui.rosterOpen; if (state.ui.rosterOpen) state.ui.drawer = false },
+  closeDrawers() { state.ui.drawer = false; state.ui.rosterOpen = false },
+  openSettings() { state.ui.view = 'settings'; state.ui.drawer = false },
+  openChat() { state.ui.view = 'chat' },
 
   send(body: string) {
     const room = state.currentRoomId
