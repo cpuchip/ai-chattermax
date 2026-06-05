@@ -10,7 +10,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chattermax}
       POSTGRES_DB: chattermax
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # postgres:18 stores data in a major-version subdirectory, so the mount
+      # must be at /var/lib/postgresql (NOT /data) or pg18 refuses to start.
+      - pgdata:/var/lib/postgresql
     networks:
       - internal
     restart: unless-stopped
