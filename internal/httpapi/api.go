@@ -38,6 +38,7 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/servers/{id}/personas", a.listPersonas)
 	mux.HandleFunc("POST /api/servers/{id}/personas", a.createPersona)
 	mux.HandleFunc("PATCH /api/personas/{id}", a.updatePersona)
+	mux.HandleFunc("DELETE /api/personas/{id}", a.deletePersona)
 	mux.HandleFunc("GET /api/personas/{id}/keys", a.listPersonaKeys)
 	mux.HandleFunc("POST /api/personas/{id}/keys", a.mintKey)
 	mux.HandleFunc("DELETE /api/personas/{id}/keys/{keyId}", a.revokePersonaKey)
@@ -49,6 +50,7 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/dms", a.listMyDMs)
 	mux.HandleFunc("POST /api/dms", a.openDM)
 	mux.HandleFunc("GET /api/dms/{id}/messages", a.dmMessages)
+	mux.HandleFunc("DELETE /api/dms/{id}", a.deleteDM)
 }
 
 // PersonaRoomsHandler is authed by a PERSONA KEY (not the user cookie): a host
@@ -332,6 +334,21 @@ func (a *API) dmMessages(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, orEmptyMsgs(msgs))
 }
 
+// deleteDM removes a DM thread (and its messages) — a participant may close it.
+func (a *API) deleteDM(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFrom(r.Context())
+	dmID := r.PathValue("id")
+	if ok, _ := a.store.UserCanAccessDM(r.Context(), dmID, u.ID); !ok {
+		writeErr(w, 403, "no access to this conversation")
+		return
+	}
+	if err := a.store.DeleteDM(r.Context(), dmID); err != nil {
+		writeErr(w, 500, "could not delete conversation")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- personas ---------------------------------------------------------------
 
 func (a *API) listPersonas(w http.ResponseWriter, r *http.Request) {
@@ -470,6 +487,20 @@ func (a *API) updatePersona(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, np)
+}
+
+// deletePersona soft-deletes a persona (status=disabled): it disappears from
+// listings, its keys stop working, and its history is preserved. Owner/admin only.
+func (a *API) deletePersona(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.canManagePersona(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := a.store.DisablePersona(r.Context(), p.ID); err != nil {
+		writeErr(w, 500, "could not delete persona")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // listPersonaKeys returns a persona's keys (metadata only — never the raw key).

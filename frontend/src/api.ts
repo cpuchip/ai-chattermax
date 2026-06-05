@@ -58,6 +58,7 @@ export const api = {
     req<void>('DELETE', `/api/personas/${personaId}/keys/${keyId}`),
   setPersonaDM: (personaId: string, dmEnabled: boolean) =>
     req<Persona>('PATCH', `/api/personas/${personaId}`, { dmEnabled }),
+  deletePersona: (personaId: string) => req<void>('DELETE', `/api/personas/${personaId}`),
 
   messages: (roomId: string) => req<Message[]>('GET', `/api/rooms/${roomId}/messages`),
 
@@ -68,4 +69,5 @@ export const api = {
   openDMWithUser: (serverId: string, userId: string) =>
     req<DMSummary>('POST', '/api/dms', { kind: 'user_user', serverId, userId }),
   dmMessages: (dmId: string) => req<Message[]>('GET', `/api/dms/${dmId}/messages`),
+  deleteDM: (dmId: string) => req<void>('DELETE', `/api/dms/${dmId}`),
 }

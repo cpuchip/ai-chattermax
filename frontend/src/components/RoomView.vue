@@ -18,6 +18,11 @@ function submit() {
   actions.send(text.value)
   text.value = ''
 }
+async function deleteDM() {
+  if (!dm.value) return
+  if (!confirm(`Delete this conversation with ${dm.value.otherName}? Messages are removed for both of you.`)) return
+  await actions.deleteDM(dm.value.id)
+}
 watch(() => messages.value.length, async () => {
   await nextTick()
   if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight
@@ -30,6 +35,7 @@ watch(() => messages.value.length, async () => {
       <template v-if="dm">
         <span class="h">{{ dm.otherKind === 'persona' ? '◆' : '@' }} {{ dm.otherName }}</span>
         <span class="topic">direct message</span>
+        <button class="cm-btn xs danger" style="margin-left:auto" @click="deleteDM">Delete</button>
       </template>
       <template v-else>
         <span class="h">{{ room?.visibility === 'private' ? '🔒' : '#' }} {{ room?.name }}</span>

@@ -70,6 +70,10 @@ async function toggleDM(p: Persona) {
   try { const np = await api.setPersonaDM(p.id, !p.dmEnabled); p.dmEnabled = np.dmEnabled }
   catch { /* ignore */ }
 }
+async function deletePersona(p: Persona) {
+  if (!confirm(`Delete persona "${p.displayName}"? Its keys stop working and it leaves the server. Past messages are kept.`)) return
+  await actions.deletePersona(p.id)
+}
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleString() : '')
 </script>
 
@@ -160,6 +164,10 @@ const fmtDate = (s?: string) => (s ? new Date(s).toLocaleString() : '')
             </div>
             <button v-if="!k.revokedAt" class="cm-btn xs danger" @click="revokeKey(p.id, k.id)">Revoke</button>
             <span v-else class="pmeta">revoked</span>
+          </div>
+
+          <div style="margin-top:14px;display:flex;justify-content:flex-end">
+            <button class="cm-btn xs danger" @click="deletePersona(p)">Delete persona</button>
           </div>
         </div>
       </div>

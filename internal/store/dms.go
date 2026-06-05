@@ -180,6 +180,13 @@ func (s *Store) PersonaDMs(ctx context.Context, personaID string) ([]DMSummary, 
 	return out, rows.Err()
 }
 
+// DeleteDM removes a DM thread and all its messages (ON DELETE CASCADE drops
+// participants + messages). Caller must verify the requester is a participant.
+func (s *Store) DeleteDM(ctx context.Context, dmID string) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM dms WHERE id = $1`, dmID)
+	return err
+}
+
 // InsertDMUserMessage stores a human's DM message and returns it resolved.
 func (s *Store) InsertDMUserMessage(ctx context.Context, dmID, userID, body string) (Message, error) {
 	return s.insertDMMessage(ctx, dmID, &userID, nil, body)

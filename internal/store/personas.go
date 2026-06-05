@@ -22,11 +22,12 @@ func (s *Store) CreatePersona(ctx context.Context, serverID, ownerUserID, slug, 
 	return p, nil
 }
 
-// ListPersonasForServer returns a server's personas.
+// ListPersonasForServer returns a server's ACTIVE personas (disabled ones are
+// soft-deleted and hidden).
 func (s *Store) ListPersonasForServer(ctx context.Context, serverID string) ([]Persona, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, dm_enabled, created_at
-		FROM personas WHERE server_id = $1 ORDER BY display_name`, serverID)
+		FROM personas WHERE server_id = $1 AND status = 'active' ORDER BY display_name`, serverID)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +129,14 @@ func (s *Store) RevokePersonaKey(ctx context.Context, personaID, keyID string) e
 	_, err := s.pool.Exec(ctx, `
 		UPDATE persona_keys SET revoked_at = now()
 		WHERE id = $1 AND persona_id = $2 AND revoked_at IS NULL`, keyID, personaID)
+	return err
+}
+
+// DisablePersona soft-deletes a persona: status='disabled' hides it from every
+// listing and stops its keys validating (ValidatePersonaKey requires 'active'),
+// while preserving its past messages' attribution. Reversible.
+func (s *Store) DisablePersona(ctx context.Context, personaID string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE personas SET status = 'disabled' WHERE id = $1`, personaID)
 	return err
 }
 

@@ -159,6 +159,22 @@ export const actions = {
   activeChannelId(): string { return state.currentDMId || state.currentRoomId },
   currentDM(): DMSummary | undefined { return state.dms.find((d) => d.id === state.currentDMId) },
 
+  async deletePersona(id: string) {
+    await api.deletePersona(id)
+    state.personas = state.personas.filter((p) => p.id !== id)
+    try { state.registry = await api.registry(state.currentServerId) } catch { /* ignore */ }
+  },
+
+  async deleteDM(id: string) {
+    await api.deleteDM(id)
+    state.dms = state.dms.filter((d) => d.id !== id)
+    delete state.messages[id]
+    if (state.currentDMId === id) {
+      state.currentDMId = ''
+      if (state.rooms.length) this.selectRoom(state.rooms[0].id)
+    }
+  },
+
   toggleDrawer() { state.ui.drawer = !state.ui.drawer; if (state.ui.drawer) state.ui.rosterOpen = false },
   toggleRoster() { state.ui.rosterOpen = !state.ui.rosterOpen; if (state.ui.rosterOpen) state.ui.drawer = false },
   closeDrawers() { state.ui.drawer = false; state.ui.rosterOpen = false },
