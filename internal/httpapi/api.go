@@ -46,6 +46,9 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/personas/{id}/grants/{roomId}", a.revokePersonaGrant)
 	mux.HandleFunc("GET /api/rooms/{id}/messages", a.roomMessages)
 	mux.HandleFunc("GET /api/rooms/{id}/search", a.roomSearch)
+	mux.HandleFunc("GET /api/dms", a.listMyDMs)
+	mux.HandleFunc("POST /api/dms", a.openDM)
+	mux.HandleFunc("GET /api/dms/{id}/messages", a.dmMessages)
 }
 
 // PersonaRoomsHandler is authed by a PERSONA KEY (not the user cookie): a host
@@ -71,6 +74,26 @@ func (a *API) PersonaRoomsHandler(w http.ResponseWriter, r *http.Request) {
 		"persona": map[string]string{"slug": p.Slug, "displayName": p.DisplayName},
 		"rooms":   orEmpty(rooms),
 	})
+}
+
+// PersonaDMsHandler is authed by a PERSONA KEY: a host gets the persona's DM
+// threads so it can subscribe to them. Public route (does its own key auth).
+func (a *API) PersonaDMsHandler(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		key = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	}
+	p, ok, err := a.store.ValidatePersonaKey(r.Context(), strings.TrimSpace(key))
+	if err != nil || !ok {
+		writeErr(w, 401, "invalid persona key")
+		return
+	}
+	dms, err := a.store.PersonaDMs(r.Context(), p.ID)
+	if err != nil {
+		writeErr(w, 500, "could not load dms")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"dms": orEmpty(dms)})
 }
 
 // ConfigHandler is public — tells the client which auth mode is in effect.
@@ -229,6 +252,81 @@ func (a *API) roomSearch(w http.ResponseWriter, r *http.Request) {
 	msgs, err := a.store.SearchRoomMessages(r.Context(), roomID, q, 50)
 	if err != nil {
 		writeErr(w, 500, "search failed")
+		return
+	}
+	writeJSON(w, 200, orEmptyMsgs(msgs))
+}
+
+// --- direct messages --------------------------------------------------------
+
+func (a *API) listMyDMs(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFrom(r.Context())
+	dms, err := a.store.ListDMsForUser(r.Context(), u.ID)
+	if err != nil {
+		writeErr(w, 500, "could not list dms")
+		return
+	}
+	writeJSON(w, 200, orEmpty(dms))
+}
+
+// openDM finds-or-creates a 1:1 DM with a persona (must be dm-enabled, same
+// server) or another user (both members of the given server).
+func (a *API) openDM(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFrom(r.Context())
+	var in struct {
+		Kind      string `json:"kind"`
+		PersonaID string `json:"personaId"`
+		UserID    string `json:"userId"`
+		ServerID  string `json:"serverId"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	switch in.Kind {
+	case "user_persona":
+		p, err := a.store.GetPersona(r.Context(), in.PersonaID)
+		if err != nil {
+			writeErr(w, 404, "persona not found")
+			return
+		}
+		if _, ok := a.member(w, r, p.ServerID, u.ID); !ok {
+			return
+		}
+		dm, err := a.store.OpenDMWithPersona(r.Context(), u.ID, in.PersonaID)
+		if err != nil {
+			writeErr(w, 400, err.Error())
+			return
+		}
+		writeJSON(w, 200, dm)
+	case "user_user":
+		if _, ok := a.member(w, r, in.ServerID, u.ID); !ok {
+			return
+		}
+		if _, ok, _ := a.store.ServerRole(r.Context(), in.ServerID, in.UserID); !ok {
+			writeErr(w, 400, "that user is not in this server")
+			return
+		}
+		dm, err := a.store.OpenDMWithUser(r.Context(), in.ServerID, u.ID, in.UserID)
+		if err != nil {
+			writeErr(w, 400, err.Error())
+			return
+		}
+		writeJSON(w, 200, dm)
+	default:
+		writeErr(w, 400, "kind must be user_persona or user_user")
+	}
+}
+
+func (a *API) dmMessages(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFrom(r.Context())
+	dmID := r.PathValue("id")
+	if ok, _ := a.store.UserCanAccessDM(r.Context(), dmID, u.ID); !ok {
+		writeErr(w, 403, "no access to this conversation")
+		return
+	}
+	msgs, err := a.store.ListDMMessages(r.Context(), dmID, 100)
+	if err != nil {
+		writeErr(w, 500, "could not load messages")
 		return
 	}
 	writeJSON(w, 200, orEmptyMsgs(msgs))

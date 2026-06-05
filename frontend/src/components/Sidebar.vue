@@ -42,6 +42,19 @@ async function createRoom() {
   try { await actions.createRoom(roomName.value.trim(), roomVis.value); roomName.value = ''; showRoom.value = false }
   finally { busy.value = false }
 }
+
+const showDM = ref(false)
+const dmErr = ref('')
+async function dmPersona(id: string) {
+  dmErr.value = ''
+  try { await actions.openDMWithPersona(id); showDM.value = false }
+  catch (e) { dmErr.value = (e as Error).message }
+}
+async function dmUser(id: string) {
+  dmErr.value = ''
+  try { await actions.openDMWithUser(id); showDM.value = false }
+  catch (e) { dmErr.value = (e as Error).message }
+}
 </script>
 
 <template>
@@ -70,13 +83,32 @@ async function createRoom() {
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.name }}</span>
     </button>
 
-    <!-- personas -->
+    <!-- personas (click to DM a dm-enabled persona) -->
     <div class="cm-group"><span>Personas</span></div>
-    <div v-for="p in state.personas" :key="p.id" class="cm-pill persona" style="cursor:default">
+    <button
+      v-for="p in state.personas" :key="p.id"
+      class="cm-pill persona" :title="p.dmEnabled ? 'Direct message ' + p.displayName : p.displayName + ' (DMs off)'"
+      @click="dmPersona(p.id)"
+    >
       <span class="ico">◆</span>
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.displayName }}</span>
-    </div>
+    </button>
     <p v-if="!state.personas.length" class="cm-rempty">none yet — add in Settings</p>
+
+    <!-- direct messages -->
+    <div class="cm-group">
+      <span>Direct Messages</span>
+      <button title="New direct message" @click="showDM = true">＋</button>
+    </div>
+    <button
+      v-for="d in state.dms" :key="d.id"
+      class="cm-pill" :class="{ active: d.id === state.currentDMId && state.ui.view === 'chat' }"
+      @click="actions.selectDM(d.id)"
+    >
+      <span class="ico">{{ d.otherKind === 'persona' ? '◆' : '@' }}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.otherName }}</span>
+    </button>
+    <p v-if="dmErr" class="cm-rempty" style="color:var(--lcars-red)">{{ dmErr }}</p>
 
     <div class="cm-spacer" />
 
@@ -118,6 +150,24 @@ async function createRoom() {
         <button class="cm-btn sm alt" @click="showRoom = false">Cancel</button>
         <button class="cm-btn sm" :disabled="busy" @click="createRoom">Create</button>
       </template>
+    </LcarsModal>
+
+    <LcarsModal v-if="showDM" title="New Direct Message" @close="showDM = false">
+      <label class="cm-label">Message a persona</label>
+      <button
+        v-for="p in state.personas.filter((p) => p.dmEnabled)" :key="p.id"
+        class="cm-pill" style="margin-bottom:4px" @click="dmPersona(p.id)"
+      ><span class="ico">◆</span><span>{{ p.displayName }}</span></button>
+      <p v-if="!state.personas.some((p) => p.dmEnabled)" class="cm-hint">No personas accept DMs yet — enable it in Settings.</p>
+
+      <label class="cm-label" style="margin-top:14px">Message a person</label>
+      <button
+        v-for="m in state.registry.filter((m) => m.userId !== state.me?.id)" :key="m.userId"
+        class="cm-pill" style="margin-bottom:4px" @click="dmUser(m.userId)"
+      ><span class="ico">@</span><span>{{ m.displayName }}</span></button>
+      <p v-if="state.registry.filter((m) => m.userId !== state.me?.id).length === 0" class="cm-hint">No other members in this server yet.</p>
+
+      <p v-if="dmErr" class="cm-err" style="text-align:left">{{ dmErr }}</p>
     </LcarsModal>
   </aside>
 </template>

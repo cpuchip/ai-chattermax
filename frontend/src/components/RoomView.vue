@@ -4,8 +4,10 @@ import { state, actions } from '../store'
 
 const text = ref('')
 const scroller = ref<HTMLDivElement | null>(null)
+const dm = computed(() => actions.currentDM())
 const room = computed(() => actions.currentRoom())
-const messages = computed(() => state.messages[state.currentRoomId] ?? [])
+const messages = computed(() => state.messages[state.currentDMId || state.currentRoomId] ?? [])
+const placeholder = computed(() => dm.value ? `Message ${dm.value.otherName}` : `Message #${room.value?.name ?? ''}`)
 
 const isMine = (id: string) => state.me && id === state.me.id
 const timeOf = (ts: string) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -25,8 +27,14 @@ watch(() => messages.value.length, async () => {
 <template>
   <section class="cm-main">
     <header class="cm-roomhead">
-      <span class="h">{{ room?.visibility === 'private' ? '🔒' : '#' }} {{ room?.name }}</span>
-      <span v-if="room?.topic" class="topic">{{ room.topic }}</span>
+      <template v-if="dm">
+        <span class="h">{{ dm.otherKind === 'persona' ? '◆' : '@' }} {{ dm.otherName }}</span>
+        <span class="topic">direct message</span>
+      </template>
+      <template v-else>
+        <span class="h">{{ room?.visibility === 'private' ? '🔒' : '#' }} {{ room?.name }}</span>
+        <span v-if="room?.topic" class="topic">{{ room.topic }}</span>
+      </template>
     </header>
 
     <div ref="scroller" class="cm-msgs">
@@ -47,7 +55,7 @@ watch(() => messages.value.length, async () => {
     </div>
 
     <form class="cm-composer" @submit.prevent="submit">
-      <input v-model="text" class="cm-input" :placeholder="`Message #${room?.name ?? ''}`" />
+      <input v-model="text" class="cm-input" :placeholder="placeholder" />
       <button type="submit" class="cm-send">Send</button>
     </form>
   </section>

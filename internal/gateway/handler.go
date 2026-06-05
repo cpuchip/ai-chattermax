@@ -121,7 +121,9 @@ func (h *Handler) readPump(c *Client, human *store.User, persona *store.Persona)
 		case "message":
 			h.handleMessage(c, f, human, persona)
 		case "history":
-			h.sendHistory(c, f.Channel, f.Limit)
+			if kind, ok := h.channelKind(c, f.Channel, human, persona); ok {
+				h.sendHistory(c, f.Channel, kind, f.Limit)
+			}
 		case "typing":
 			if f.Channel != "" {
 				h.hub.broadcast(f.Channel, marshal(typingFrame{Type: "typing", Channel: f.Channel, Who: c.who.Name}), c)
@@ -131,20 +133,28 @@ func (h *Handler) readPump(c *Client, human *store.User, persona *store.Persona)
 }
 
 func (h *Handler) handleSubscribe(c *Client, channel string, human *store.User, persona *store.Persona) {
-	if channel == "" || !h.canAccess(c, channel, human, persona) {
+	if channel == "" {
+		return
+	}
+	kind, ok := h.channelKind(c, channel, human, persona)
+	if !ok {
 		return
 	}
 	if !h.hub.subscribe(c, channel) {
 		return // already subscribed
 	}
 	// History + roster snapshot to the new subscriber, then announce to others.
-	h.sendHistory(c, channel, historyOnJoin)
+	h.sendHistory(c, channel, kind, historyOnJoin)
 	c.enqueue(marshal(presenceFrame{Type: "presence", Channel: channel, Roster: h.hub.roster(channel)}))
 	h.hub.broadcast(channel, marshal(presenceFrame{Type: "presence", Channel: channel, State: "join", Who: &c.who}), c)
 }
 
 func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, persona *store.Persona) {
-	if f.Channel == "" || f.Body == "" || !h.canAccess(c, f.Channel, human, persona) {
+	if f.Channel == "" || f.Body == "" {
+		return
+	}
+	kind, ok := h.channelKind(c, f.Channel, human, persona)
+	if !ok {
 		return
 	}
 	ctx := context.Background()
@@ -153,8 +163,12 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 		err error
 	)
 	switch {
+	case human != nil && kind == "dm":
+		msg, err = h.store.InsertDMUserMessage(ctx, f.Channel, human.ID, f.Body)
 	case human != nil:
 		msg, err = h.store.InsertRoomUserMessage(ctx, f.Channel, human.ID, f.Body)
+	case persona != nil && kind == "dm":
+		msg, err = h.store.InsertDMPersonaMessage(ctx, f.Channel, persona.ID, f.Body)
 	case persona != nil:
 		msg, err = h.store.InsertRoomPersonaMessage(ctx, f.Channel, persona.ID, nil, f.Body)
 	}
@@ -168,14 +182,22 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 	h.hub.broadcast(f.Channel, marshal(messageFrame{Type: "message", Channel: f.Channel, Message: msg}), c)
 }
 
-func (h *Handler) sendHistory(c *Client, channel string, limit int) {
+func (h *Handler) sendHistory(c *Client, channel, kind string, limit int) {
 	if channel == "" {
 		return
 	}
 	if limit <= 0 {
 		limit = historyOnJoin
 	}
-	msgs, err := h.store.ListRoomMessages(context.Background(), channel, limit)
+	var (
+		msgs []store.Message
+		err  error
+	)
+	if kind == "dm" {
+		msgs, err = h.store.ListDMMessages(context.Background(), channel, limit)
+	} else {
+		msgs, err = h.store.ListRoomMessages(context.Background(), channel, limit)
+	}
 	if err != nil {
 		log.Printf("gateway history: %v", err)
 		return
@@ -183,18 +205,27 @@ func (h *Handler) sendHistory(c *Client, channel string, limit int) {
 	c.enqueue(marshal(historyFrame{Type: "history", Channel: channel, Messages: msgs}))
 }
 
-// canAccess checks whether the connection may read/post in a channel.
-func (h *Handler) canAccess(c *Client, channel string, human *store.User, persona *store.Persona) bool {
+// channelKind reports whether the connection may access a channel and whether it
+// is a "room" or a "dm" (so the message + history paths route correctly).
+func (h *Handler) channelKind(c *Client, channel string, human *store.User, persona *store.Persona) (string, bool) {
 	ctx := context.Background()
 	switch {
 	case human != nil:
-		ok, err := h.store.UserCanAccessRoom(ctx, channel, human.ID)
-		return err == nil && ok
+		if ok, _ := h.store.UserCanAccessRoom(ctx, channel, human.ID); ok {
+			return "room", true
+		}
+		if ok, _ := h.store.UserCanAccessDM(ctx, channel, human.ID); ok {
+			return "dm", true
+		}
 	case persona != nil:
-		ok, err := h.store.PersonaCanAccessRoom(ctx, persona.ID, channel)
-		return err == nil && ok
+		if ok, _ := h.store.PersonaCanAccessRoom(ctx, persona.ID, channel); ok {
+			return "room", true
+		}
+		if ok, _ := h.store.PersonaCanAccessDM(ctx, channel, persona.ID); ok {
+			return "dm", true
+		}
 	}
-	return false
+	return "", false
 }
 
 // writePump drains the send channel and keeps the connection alive with pings.

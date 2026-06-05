@@ -1,7 +1,7 @@
 // The app store: a reactive singleton wiring the REST api + the gateway client
 // into view state. Components read `state` and call `actions`.
 import { reactive } from 'vue'
-import { api, type User, type Server, type Room, type Persona, type Message, type Participant, type RegistryMember } from './api'
+import { api, type User, type Server, type Room, type Persona, type Message, type Participant, type RegistryMember, type DMSummary } from './api'
 import { Gateway } from './gateway'
 
 interface State {
@@ -14,6 +14,8 @@ interface State {
   currentServerToken: string
   rooms: Room[]
   currentRoomId: string
+  dms: DMSummary[]
+  currentDMId: string
   personas: Persona[]
   registry: RegistryMember[]
   messages: Record<string, Message[]>
@@ -32,6 +34,8 @@ export const state = reactive<State>({
   currentServerToken: '',
   rooms: [],
   currentRoomId: '',
+  dms: [],
+  currentDMId: '',
   personas: [],
   registry: [],
   messages: {},
@@ -87,8 +91,8 @@ export const actions = {
     try { await api.logout() } catch { /* ignore */ }
     gateway?.close(); gateway = null
     state.me = null
-    state.servers = []; state.rooms = []; state.personas = []; state.registry = []
-    state.currentServerId = ''; state.currentRoomId = ''
+    state.servers = []; state.rooms = []; state.personas = []; state.registry = []; state.dms = []
+    state.currentServerId = ''; state.currentRoomId = ''; state.currentDMId = ''
     state.messages = {}; state.roster = {}
   },
 
@@ -108,9 +112,11 @@ export const actions = {
   async selectServer(id: string) {
     state.currentServerId = id
     state.currentServerToken = ''
+    state.currentDMId = ''
     state.rooms = await api.rooms(id)
     try { state.personas = await api.personas(id) } catch { state.personas = [] }
     try { state.registry = await api.registry(id) } catch { state.registry = [] }
+    try { state.dms = await api.listDMs() } catch { state.dms = [] }
     try { state.currentServerToken = (await api.server(id)).joinToken ?? '' } catch { /* non-admin */ }
     if (state.rooms.length) this.selectRoom(state.rooms[0].id)
     else state.currentRoomId = ''
@@ -125,10 +131,33 @@ export const actions = {
 
   selectRoom(id: string) {
     state.currentRoomId = id
+    state.currentDMId = ''
     gateway?.subscribe(id) // idempotent server-side; ensures presence + history
     state.ui.view = 'chat'
     state.ui.drawer = false
   },
+
+  selectDM(id: string) {
+    state.currentDMId = id
+    gateway?.subscribe(id)
+    state.ui.view = 'chat'
+    state.ui.drawer = false
+  },
+
+  async openDMWithPersona(personaId: string) {
+    const dm = await api.openDMWithPersona(personaId)
+    if (!state.dms.some((d) => d.id === dm.id)) state.dms.unshift(dm)
+    this.selectDM(dm.id)
+  },
+
+  async openDMWithUser(userId: string) {
+    const dm = await api.openDMWithUser(state.currentServerId, userId)
+    if (!state.dms.some((d) => d.id === dm.id)) state.dms.unshift(dm)
+    this.selectDM(dm.id)
+  },
+
+  activeChannelId(): string { return state.currentDMId || state.currentRoomId },
+  currentDM(): DMSummary | undefined { return state.dms.find((d) => d.id === state.currentDMId) },
 
   toggleDrawer() { state.ui.drawer = !state.ui.drawer; if (state.ui.drawer) state.ui.rosterOpen = false },
   toggleRoster() { state.ui.rosterOpen = !state.ui.rosterOpen; if (state.ui.rosterOpen) state.ui.drawer = false },
@@ -137,14 +166,14 @@ export const actions = {
   openChat() { state.ui.view = 'chat' },
 
   send(body: string) {
-    const room = state.currentRoomId
-    if (!room || !body.trim() || !state.me) return
+    const ch = state.currentDMId || state.currentRoomId
+    if (!ch || !body.trim() || !state.me) return
     // optimistic — the server broadcasts to everyone except us.
-    ;(state.messages[room] ||= []).push({
-      id: 'local-' + Date.now(), roomId: room, senderId: state.me.id,
+    ;(state.messages[ch] ||= []).push({
+      id: 'local-' + Date.now(), senderId: state.me.id,
       sender: state.me.displayName, senderKind: 'human', body, ts: new Date().toISOString(),
     })
-    gateway?.send(room, body)
+    gateway?.send(ch, body)
   },
 
   async createServer(name: string) {

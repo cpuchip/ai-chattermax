@@ -7,7 +7,8 @@ import RosterPanel from './RosterPanel.vue'
 import SettingsView from './SettingsView.vue'
 
 const room = computed(() => actions.currentRoom())
-const onlineCount = computed(() => (state.roster[state.currentRoomId] ?? []).length)
+const dm = computed(() => actions.currentDM())
+const activeLabel = computed(() => dm.value ? dm.value.otherName : (room.value ? '#' + room.value.name : (actions.currentServer()?.name ?? 'AI Chattermax')))
 </script>
 
 <template>
@@ -17,7 +18,7 @@ const onlineCount = computed(() => (state.roster[state.currentRoomId] ?? []).len
       <div class="cm-elbow">
         <span class="cm-brand">AI Chattermax<small>{{ actions.currentServer()?.name ?? '—' }}</small></span>
       </div>
-      <span class="cm-brand-m">{{ room ? '#' + room.name : (actions.currentServer()?.name ?? 'AI Chattermax') }}</span>
+      <span class="cm-brand-m">{{ activeLabel }}</span>
       <div class="cm-rail">
         <span class="cm-bar b1" />
         <span class="cm-bar b2" />
@@ -32,7 +33,7 @@ const onlineCount = computed(() => (state.roster[state.currentRoomId] ?? []).len
 
     <Sidebar />
 
-    <RoomView v-if="state.ui.view === 'chat' && state.currentRoomId" />
+    <RoomView v-if="state.ui.view === 'chat' && (state.currentRoomId || state.currentDMId)" />
     <SettingsView v-else-if="state.ui.view === 'settings'" />
     <section v-else class="cm-main">
       <p class="cm-empty" style="margin:auto">Pick a channel to begin.</p>

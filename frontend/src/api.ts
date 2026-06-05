@@ -8,6 +8,7 @@ export interface PersonaKey { id: string; label?: string; createdAt: string; las
 export interface Message { id: string; roomId?: string; dmId?: string; senderId: string; sender: string; senderKind: string; senderAvatar?: string; body: string; ts: string }
 export interface Participant { id: string; name: string; kind: string; avatar?: string }
 export interface RegistryMember { userId: string; displayName: string; avatarUrl?: string; role: string; personas: Persona[] }
+export interface DMSummary { id: string; kind: string; otherId: string; otherName: string; otherKind: string }
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
@@ -59,4 +60,12 @@ export const api = {
     req<Persona>('PATCH', `/api/personas/${personaId}`, { dmEnabled }),
 
   messages: (roomId: string) => req<Message[]>('GET', `/api/rooms/${roomId}/messages`),
+
+  // AXR3 — direct messages.
+  listDMs: () => req<DMSummary[]>('GET', '/api/dms'),
+  openDMWithPersona: (personaId: string) =>
+    req<DMSummary>('POST', '/api/dms', { kind: 'user_persona', personaId }),
+  openDMWithUser: (serverId: string, userId: string) =>
+    req<DMSummary>('POST', '/api/dms', { kind: 'user_user', serverId, userId }),
+  dmMessages: (dmId: string) => req<Message[]>('GET', `/api/dms/${dmId}/messages`),
 }

@@ -27,7 +27,7 @@ import (
 
 // buildTag is surfaced at GET /api/version so a deploy's freshness is verifiable
 // (Dokploy has silently served stale binaries). Bump it with backend changes.
-const buildTag = "axr2-persona-mgmt-2026-06-05"
+const buildTag = "axr3-dms-2026-06-05"
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
@@ -109,6 +109,7 @@ func main() {
 		_, _ = w.Write([]byte(`{"build":"` + buildTag + `"}`))
 	})
 	root.HandleFunc("GET /api/persona/rooms", api.PersonaRoomsHandler) // persona-key auth
+	root.HandleFunc("GET /api/persona/dms", api.PersonaDMsHandler)     // persona-key auth
 	root.HandleFunc("POST /api/auth/login", authService.LoginHandler)
 	root.HandleFunc("POST /api/auth/logout", authService.LogoutHandler)
 	root.Handle("GET /gateway", gw)
