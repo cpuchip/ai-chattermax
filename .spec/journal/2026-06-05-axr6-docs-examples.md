@@ -19,6 +19,19 @@ the frame table, the humans-only turn loop — and the model-backend table) and
 `examples/persona-host.example.env` (copy-paste host config). Rewrote the bare
 top-level `README.md` to describe the platform + link the guide.
 
+**Michael's correction (acted on same session):** the only concrete *host* I'd
+documented was `cmd/persona-host`, which is welded to pg-ai-stewards — "the world
+doesn't run pg-ai-stewards, just me." So I added **`examples/echo-persona/`**: a
+complete persona client in ~150 lines of Go, its own go.mod, zero dependency on
+the substrate (no DB, no LLM). The whole protocol in one file; the only
+"intelligence" is a `respond()` function you replace with your own agent. Builds +
+vets; verified `/api/persona/rooms` against prod returns the exact shapes the
+example decodes (persona Starlet, rooms Holodeck-3 + 10-forward), and its WS frames
+match what persona-host posts in prod daily. Reworked both READMEs to **lead with
+the standalone example** and demote the reference host to "only if you run that
+stack." Also untracked two stray `.claude/cache` ground-check artifacts that the
+re-grounding hook had committed into the repo.
+
 The model-backend examples Michael asked for (AXR5/AXR6 overlap) landed on the
 substrate side: **persona-turn-lmstudio** (qwen3.6-27b via local LM Studio) and
 **persona-turn-gemini** (gemini-3.5-flash) pipelines, plus a per-persona
