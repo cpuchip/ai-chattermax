@@ -23,9 +23,9 @@ type Service struct {
 	auth         Authenticator
 	cookieDomain string
 	cookieSecure bool
-	// OnLogin, if set, runs after a successful login (e.g. onboard the user into
-	// the demo server). Best-effort — errors are ignored.
-	OnLogin func(ctx context.Context, userID string)
+	// OnLogin, if set, runs after a successful login (e.g. give a brand-new user
+	// their own server). Best-effort — errors are ignored.
+	OnLogin func(ctx context.Context, user store.User)
 }
 
 // NewService builds the auth service.
@@ -96,7 +96,7 @@ func (s *Service) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.OnLogin != nil {
-		s.OnLogin(r.Context(), user.ID)
+		s.OnLogin(r.Context(), user)
 	}
 	s.setSessionCookie(w, token)
 	writeJSON(w, http.StatusOK, user)

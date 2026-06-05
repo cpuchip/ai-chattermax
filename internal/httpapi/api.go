@@ -31,6 +31,7 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/servers", a.listServers)
 	mux.HandleFunc("POST /api/servers", a.createServer)
 	mux.HandleFunc("POST /api/servers/join", a.joinServer)
+	mux.HandleFunc("GET /api/servers/{id}", a.getServer)
 	mux.HandleFunc("GET /api/servers/{id}/rooms", a.listRooms)
 	mux.HandleFunc("POST /api/servers/{id}/rooms", a.createRoom)
 	mux.HandleFunc("GET /api/servers/{id}/registry", a.registry)
@@ -95,6 +96,25 @@ func (a *API) joinServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sv.JoinToken = "" // don't leak the token to a plain member
+	writeJSON(w, 200, sv)
+}
+
+func (a *API) getServer(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFrom(r.Context())
+	id := r.PathValue("id")
+	role, ok := a.member(w, r, id, u.ID)
+	if !ok {
+		return
+	}
+	sv, err := a.store.GetServer(r.Context(), id)
+	if err != nil {
+		writeErr(w, 404, "server not found")
+		return
+	}
+	// Only owners/admins see the invite token.
+	if role != "owner" && role != "admin" {
+		sv.JoinToken = ""
+	}
 	writeJSON(w, 200, sv)
 }
 

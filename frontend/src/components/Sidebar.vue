@@ -7,8 +7,10 @@ function initials(s: string) {
   return s.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
 }
 
-const showServer = ref(false)
+const showAdd = ref(false)
 const serverName = ref('')
+const joinToken = ref('')
+const joinErr = ref('')
 const showRoom = ref(false)
 const roomName = ref('')
 const roomVis = ref<'public' | 'private'>('public')
@@ -17,8 +19,22 @@ const busy = ref(false)
 async function createServer() {
   if (!serverName.value.trim()) return
   busy.value = true
-  try { await actions.createServer(serverName.value.trim()); serverName.value = ''; showServer.value = false }
+  try { await actions.createServer(serverName.value.trim()); serverName.value = ''; showAdd.value = false }
   finally { busy.value = false }
+}
+async function joinServer() {
+  const t = parseJoin(joinToken.value)
+  if (!t) return
+  joinErr.value = ''; busy.value = true
+  try { await actions.joinByToken(t); joinToken.value = ''; showAdd.value = false }
+  catch (e) { joinErr.value = (e as Error).message }
+  finally { busy.value = false }
+}
+// Accept either a raw token/pin or a full invite URL (?join=<token>).
+function parseJoin(v: string): string {
+  v = v.trim()
+  const m = v.match(/[?&]join=([^&\s]+)/)
+  return m ? decodeURIComponent(m[1]) : v
 }
 async function createRoom() {
   if (!roomName.value.trim()) return
@@ -37,7 +53,7 @@ async function createRoom() {
         class="cm-server" :class="{ active: s.id === state.currentServerId }"
         :title="s.name" @click="actions.selectServer(s.id)"
       >{{ initials(s.name) }}</button>
-      <button class="cm-server add" title="Create server" @click="showServer = true">+</button>
+      <button class="cm-server add" title="Add a server" @click="showAdd = true">+</button>
     </div>
 
     <!-- channels -->
@@ -75,13 +91,19 @@ async function createRoom() {
     </div>
 
     <!-- dialogs -->
-    <LcarsModal v-if="showServer" title="New Server" @close="showServer = false">
-      <label class="cm-label">Server name</label>
-      <input v-model="serverName" class="cm-field" placeholder="e.g. Bridge Crew" autofocus @keyup.enter="createServer" />
-      <template #footer>
-        <button class="cm-btn sm alt" @click="showServer = false">Cancel</button>
+    <LcarsModal v-if="showAdd" title="Add a Server" @close="showAdd = false">
+      <label class="cm-label">Create a new server</label>
+      <div class="cm-formrow">
+        <input v-model="serverName" class="cm-field" placeholder="e.g. Bridge Crew" autofocus @keyup.enter="createServer" />
         <button class="cm-btn sm" :disabled="busy" @click="createServer">Create</button>
-      </template>
+      </div>
+      <hr style="border:none;border-top:1px solid #222;margin:18px 0" />
+      <label class="cm-label">Join with an invite link or pin</label>
+      <div class="cm-formrow">
+        <input v-model="joinToken" class="cm-field" placeholder="paste invite link or pin" @keyup.enter="joinServer" />
+        <button class="cm-btn sm alt" :disabled="busy" @click="joinServer">Join</button>
+      </div>
+      <p v-if="joinErr" class="cm-err" style="text-align:left">{{ joinErr }}</p>
     </LcarsModal>
 
     <LcarsModal v-if="showRoom" title="New Channel" @close="showRoom = false">

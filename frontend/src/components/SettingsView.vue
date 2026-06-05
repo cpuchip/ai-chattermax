@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { state, actions } from '../store'
 import { api } from '../api'
+
+const inviteLink = computed(() =>
+  state.currentServerToken ? `${location.origin}/?join=${state.currentServerToken}` : '')
+const copied = ref(false)
+async function copyInvite() {
+  try { await navigator.clipboard.writeText(inviteLink.value); copied.value = true; setTimeout(() => (copied.value = false), 1800) }
+  catch { /* clipboard blocked */ }
+}
 
 const newName = ref('')
 const newHostRef = ref('dm-assistant')
@@ -42,6 +50,23 @@ async function grant(id: string) {
         <div class="row">
           <div><span class="pname">{{ state.me?.displayName }}</span><div class="pmeta">{{ state.connected ? 'connected' : 'offline' }}</div></div>
           <button class="cm-btn sm alt" @click="actions.logout()">Log out</button>
+        </div>
+      </div>
+
+      <div class="cm-sec">Server — {{ actions.currentServer()?.name }}</div>
+      <div class="cm-card">
+        <template v-if="inviteLink">
+          <label class="cm-label">Invite link</label>
+          <div class="cm-formrow">
+            <input class="cm-field" :value="inviteLink" readonly @focus="($event.target as HTMLInputElement).select()" />
+            <button class="cm-btn sm" @click="copyInvite">{{ copied ? 'Copied!' : 'Copy' }}</button>
+          </div>
+          <p class="cm-hint">Share this — anyone who opens it and signs in joins this server.</p>
+        </template>
+        <p v-else class="cm-hint">Only the owner or admins can see the invite link.</p>
+        <label class="cm-label" style="margin-top:14px">Members ({{ state.registry.length }})</label>
+        <div v-for="m in state.registry" :key="m.userId" class="cm-rrow" style="margin-bottom:4px">
+          <span class="on" /><span style="flex:1">{{ m.displayName }}</span><span class="pmeta">{{ m.role }}</span>
         </div>
       </div>
 

@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -56,10 +57,26 @@ func main() {
 	}
 
 	authService := auth.NewService(st, auth.NewAuthenticator(cfg.AuthMode, cfg.IbecoBaseURL), cfg.CookieDomain, cfg.CookieSecure)
-	// Onboard every new login into the demo server so the platform is usable on
-	// first visit (v1 — replaced by explicit join/discovery later).
-	authService.OnLogin = func(ctx context.Context, userID string) {
-		_ = st.AddServerMember(ctx, demo.ServerID, userID, "member")
+	// A brand-new user (member of no servers) gets their own server so they land
+	// somewhere they own. Collaboration is via invite links, not auto-join.
+	authService.OnLogin = func(ctx context.Context, user store.User) {
+		servers, err := st.ListServersForUser(ctx, user.ID)
+		if err != nil {
+			return
+		}
+		for _, sv := range servers {
+			if sv.OwnerUserID == user.ID {
+				return // already owns a server
+			}
+		}
+		sv, err := st.CreateServer(ctx, personalSlug(user.DisplayName), user.DisplayName+"'s Server", user.ID)
+		if err != nil {
+			log.Printf("onboard %s: create server: %v", user.ID, err)
+			return
+		}
+		if _, err := st.CreateRoom(ctx, sv.ID, "general", "general", "public", "Welcome aboard.", user.ID); err != nil {
+			log.Printf("onboard %s: create room: %v", user.ID, err)
+		}
 	}
 
 	api := httpapi.New(st, cfg.AuthMode)
@@ -104,6 +121,24 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
 	log.Printf("stopped")
+}
+
+// personalSlug builds a unique, URL-safe server slug from a display name.
+func personalSlug(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(strings.TrimSpace(name)) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == ' ' || r == '-' || r == '_':
+			b.WriteByte('-')
+		}
+	}
+	base := strings.Trim(b.String(), "-")
+	if base == "" {
+		base = "crew"
+	}
+	return fmt.Sprintf("%s-%x", base, time.Now().UnixNano()%0xffffff)
 }
 
 // spaHandler serves embedded static files, falling back to index.html for SPA

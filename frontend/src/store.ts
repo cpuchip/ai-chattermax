@@ -11,6 +11,7 @@ interface State {
   connected: boolean
   servers: Server[]
   currentServerId: string
+  currentServerToken: string
   rooms: Room[]
   currentRoomId: string
   personas: Persona[]
@@ -28,6 +29,7 @@ export const state = reactive<State>({
   connected: false,
   servers: [],
   currentServerId: '',
+  currentServerToken: '',
   rooms: [],
   currentRoomId: '',
   personas: [],
@@ -93,16 +95,32 @@ export const actions = {
   async afterAuth() {
     ensureGateway()
     state.servers = await api.servers()
+    // Invite link: chat.ibeco.me/?join=<token> auto-joins that server.
+    const joinTok = new URLSearchParams(location.search).get('join')
+    if (joinTok) {
+      try { await this.joinByToken(joinTok) } catch { /* invalid/expired */ }
+      history.replaceState({}, '', location.pathname)
+      if (state.currentServerId) return
+    }
     if (state.servers.length) await this.selectServer(state.servers[0].id)
   },
 
   async selectServer(id: string) {
     state.currentServerId = id
+    state.currentServerToken = ''
     state.rooms = await api.rooms(id)
     try { state.personas = await api.personas(id) } catch { state.personas = [] }
     try { state.registry = await api.registry(id) } catch { state.registry = [] }
+    try { state.currentServerToken = (await api.server(id)).joinToken ?? '' } catch { /* non-admin */ }
     if (state.rooms.length) this.selectRoom(state.rooms[0].id)
     else state.currentRoomId = ''
+  },
+
+  async joinByToken(token: string) {
+    const sv = await api.joinServer(token.trim())
+    state.servers = await api.servers()
+    await this.selectServer(sv.id)
+    return sv
   },
 
   selectRoom(id: string) {
