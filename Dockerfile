@@ -15,7 +15,11 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=node-build /src/frontend/dist ./frontend/dist
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /chattermax ./cmd/server
+# CACHEBUST: Dokploy/buildkit has served a stale `go build` layer despite source
+# changes (a backend deploy silently ran the old binary). Bump this value to
+# force a fresh compile when a backend change must land.
+ARG CACHEBUST=2026-06-05-multiroom
+RUN echo "cachebust ${CACHEBUST}" && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /chattermax ./cmd/server
 
 # --- runtime stage ---
 FROM alpine:3.20
