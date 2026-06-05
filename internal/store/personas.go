@@ -1,0 +1,142 @@
+package store
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+)
+
+// CreatePersona registers a member-owned persona in a server.
+func (s *Store) CreatePersona(ctx context.Context, serverID, ownerUserID, slug, displayName, avatarURL, hostRef string) (Persona, error) {
+	var p Persona
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO personas (server_id, owner_user_id, slug, display_name, avatar_url, host_ref)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, created_at`,
+		serverID, ownerUserID, slug, displayName, nullIfEmpty(avatarURL), nullIfEmpty(hostRef),
+	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.CreatedAt)
+	if err != nil {
+		return Persona{}, fmt.Errorf("insert persona: %w", err)
+	}
+	return p, nil
+}
+
+// ListPersonasForServer returns a server's personas.
+func (s *Store) ListPersonasForServer(ctx context.Context, serverID string) ([]Persona, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, created_at
+		FROM personas WHERE server_id = $1 ORDER BY display_name`, serverID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Persona
+	for rows.Next() {
+		var p Persona
+		if err := rows.Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// GetPersona loads a persona by id.
+func (s *Store) GetPersona(ctx context.Context, id string) (Persona, error) {
+	var p Persona
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, created_at
+		FROM personas WHERE id = $1`, id,
+	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.CreatedAt)
+	if err != nil {
+		return Persona{}, err
+	}
+	return p, nil
+}
+
+// PersonaByServerSlug loads a persona by (server, slug).
+func (s *Store) PersonaByServerSlug(ctx context.Context, serverID, slug string) (Persona, error) {
+	var p Persona
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, created_at
+		FROM personas WHERE server_id = $1 AND slug = $2`, serverID, slug,
+	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.CreatedAt)
+	if err != nil {
+		return Persona{}, err
+	}
+	return p, nil
+}
+
+// hashKey returns the hex SHA-256 of a raw persona key (only the hash is stored).
+func hashKey(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
+}
+
+// MintPersonaKey creates a new key for a persona and returns the RAW key (shown
+// once — only its hash is persisted). Raw format: "cmk_<hex>".
+func (s *Store) MintPersonaKey(ctx context.Context, personaID, label string) (string, error) {
+	tok, err := randomToken(24)
+	if err != nil {
+		return "", err
+	}
+	raw := "cmk_" + tok
+	if _, err := s.pool.Exec(ctx, `
+		INSERT INTO persona_keys (persona_id, key_hash, label) VALUES ($1, $2, $3)`,
+		personaID, hashKey(raw), nullIfEmpty(label)); err != nil {
+		return "", fmt.Errorf("mint persona key: %w", err)
+	}
+	return raw, nil
+}
+
+// ValidatePersonaKey resolves a raw key to its persona (active, key not revoked),
+// touching last_used_at. ok=false when the key is unknown or revoked.
+func (s *Store) ValidatePersonaKey(ctx context.Context, raw string) (Persona, bool, error) {
+	var p Persona
+	err := s.pool.QueryRow(ctx, `
+		SELECT p.id, p.server_id, p.owner_user_id, p.slug, p.display_name, COALESCE(p.avatar_url,''), p.host_kind, COALESCE(p.host_ref,''), p.status, p.created_at
+		FROM persona_keys k JOIN personas p ON p.id = k.persona_id
+		WHERE k.key_hash = $1 AND k.revoked_at IS NULL AND p.status = 'active'`, hashKey(raw),
+	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.CreatedAt)
+	if err != nil {
+		return Persona{}, false, nil //nolint:nilerr // unknown key is not an error
+	}
+	_, _ = s.pool.Exec(ctx, `UPDATE persona_keys SET last_used_at = now() WHERE key_hash = $1`, hashKey(raw))
+	return p, true, nil
+}
+
+// GrantPersonaRoom grants a persona into a room (idempotent).
+func (s *Store) GrantPersonaRoom(ctx context.Context, personaID, roomID, grantedBy string) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO persona_room_grants (persona_id, room_id, granted_by) VALUES ($1, $2, $3)
+		ON CONFLICT (persona_id, room_id) DO NOTHING`, personaID, roomID, nullIfEmpty(grantedBy))
+	return err
+}
+
+// PersonaGrantedRooms returns the room ids a persona is granted into.
+func (s *Store) PersonaGrantedRooms(ctx context.Context, personaID string) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `SELECT room_id FROM persona_room_grants WHERE persona_id = $1`, personaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// PersonaCanAccessRoom reports whether a persona is granted into a room.
+func (s *Store) PersonaCanAccessRoom(ctx context.Context, personaID, roomID string) (bool, error) {
+	var ok bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM persona_room_grants WHERE persona_id = $1 AND room_id = $2)`,
+		personaID, roomID).Scan(&ok)
+	return ok, err
+}

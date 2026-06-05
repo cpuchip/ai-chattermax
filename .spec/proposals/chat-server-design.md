@@ -8,6 +8,8 @@ build_status: ratified, not yet built (waits on coder-v2)
 
 # ai-chattermax — chat-server design (RATIFIED 2026-06-03)
 
+> **⚠ PARTIALLY SUPERSEDED 2026-06-04 by [`platform-design.md`](platform-design.md).** The project was re-scoped from a chat *room* to a chat *platform* (multi-tenant servers → rooms → DMs → registry). **Q2 is revised:** "the substrate owns personas natively" → split model (the platform owns persona *membership* + mints the key; pg-ai-stewards owns persona *cognition* + signs the token). The build is now done **directly by Claude Code**, not the substrate code-pr coder; pg-ai-stewards remains the persona *provider*. The MVP success criteria below still hold as the D&D slice inside the larger platform. Read platform-design.md first.
+
 > **Status: RATIFIED.** The five open questions are answered (below). ai-chattermax is now an active build target — deliberately chosen as **coder-v2's flagship stress-test**: a real, multi-file, multi-repo project the substrate builds incrementally as PRs, with Michael + the orchestrating agent monitoring and catching issues as they surface. This is a scope expansion the 2026-05-23 Sabbath set down; revived 2026-06-03 because the coding capability changed the calculus (the substrate can now build it). Mosiah 4:27 stays loaded — watch whether this crowds the other cycle threads.
 
 ## Ratified decisions
