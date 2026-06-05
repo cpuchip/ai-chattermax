@@ -4,15 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 
+	"github.com/cpuchip/ai-chattermax"
 	"github.com/cpuchip/ai-chattermax/presence"
 	"github.com/cpuchip/ai-chattermax/room"
 	"github.com/cpuchip/ai-chattermax/scheduler"
@@ -32,6 +36,49 @@ var clientIDCounter atomic.Int64
 
 func generateClientID() string {
 	return fmt.Sprintf("client-%d", clientIDCounter.Add(1))
+}
+
+// withSPA wraps an API handler with static-file serving and SPA history fallback.
+// API routes (/healthz, /roster/, /ws/) are passed through untouched.
+func withSPA(api http.Handler, staticFS fs.FS) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+
+		// Pass through API and WebSocket routes
+		if path == "/healthz" || strings.HasPrefix(path, "/roster/") || strings.HasPrefix(path, "/ws/") {
+			api.ServeHTTP(w, r)
+			return
+		}
+
+		// Try to serve the exact file
+		cleanPath := strings.TrimPrefix(path, "/")
+		if cleanPath == "" {
+			cleanPath = "index.html"
+		}
+		f, err := staticFS.Open(cleanPath)
+		if err == nil {
+			defer f.Close()
+			stat, err := f.Stat()
+			if err == nil && !stat.IsDir() {
+				http.ServeContent(w, r, cleanPath, stat.ModTime(), f.(io.ReadSeeker))
+				return
+			}
+		}
+
+		// Fallback to index.html for SPA routes
+		f, err = staticFS.Open("index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer f.Close()
+		stat, err := f.Stat()
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeContent(w, r, "index.html", stat.ModTime(), f.(io.ReadSeeker))
+	})
 }
 
 // wsClient wraps a websocket connection to implement room.Client.
@@ -133,6 +180,12 @@ func main() {
 
 	mux := newMux(hub, sched, store, tracker)
 
+	staticFS, err := static.FS()
+	if err != nil {
+		log.Fatalf("failed to create static fs: %v", err)
+	}
+	handler := withSPA(mux, staticFS)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -140,7 +193,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    ":" + port,
-		Handler: mux,
+		Handler: handler,
 	}
 
 	// Graceful shutdown
