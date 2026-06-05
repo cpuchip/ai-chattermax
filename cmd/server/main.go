@@ -98,6 +98,30 @@ func (c *wsClient) Send(msg []byte) error {
 	return c.conn.WriteMessage(websocket.TextMessage, msg)
 }
 
+// wireMessage is the JSON envelope broadcast to clients so every message carries
+// its sender. The frontend (useChat) and persona-host both parse {sender, body};
+// ts is included for ordering.
+type wireMessage struct {
+	Sender string `json:"sender"`
+	Body   string `json:"body"`
+	TS     string `json:"ts"`
+}
+
+// wireBytes encodes a transcript message as the on-wire JSON envelope. On the
+// (practically impossible) marshal error it falls back to the raw body so a
+// message is never silently dropped.
+func wireBytes(m transcript.Message) []byte {
+	b, err := json.Marshal(wireMessage{
+		Sender: m.Sender,
+		Body:   m.Body,
+		TS:     m.Timestamp.UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return []byte(m.Body)
+	}
+	return b
+}
+
 func newMux(hub *room.Hub, sched *scheduler.Scheduler, store transcript.Store, tracker *presence.Tracker) *http.ServeMux {
 	mux := http.NewServeMux()
 
@@ -141,6 +165,16 @@ func newMux(hub *room.Hub, sched *scheduler.Scheduler, store transcript.Store, t
 			sched.RemoveParticipant(clientID)
 		}()
 
+		// Replay room history to the joiner so it has context: humans see the
+		// backlog, and a persona reads recent turns before it speaks.
+		if history, err := store.Replay(roomID); err != nil {
+			log.Printf("replay error: %v", err)
+		} else {
+			for _, m := range history {
+				_ = client.Send(wireBytes(m))
+			}
+		}
+
 		for {
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
@@ -165,7 +199,10 @@ func newMux(hub *room.Hub, sched *scheduler.Scheduler, store transcript.Store, t
 				continue
 			}
 
-			hub.Broadcast(roomID, msg)
+			// Broadcast the attributed envelope to everyone EXCEPT the sender —
+			// the sender's client already shows its own message optimistically,
+			// so echoing it back would duplicate it.
+			hub.BroadcastExcept(roomID, clientID, wireBytes(tmsg))
 		}
 	})
 

@@ -52,6 +52,13 @@ func (h *Hub) Unregister(roomID string, c Client) {
 
 // Broadcast sends a message to all clients currently in the room.
 func (h *Hub) Broadcast(roomID string, message []byte) {
+	h.BroadcastExcept(roomID, "", message)
+}
+
+// BroadcastExcept sends a message to every client in the room except the one
+// whose ID equals exceptID. Used so a sender does not receive an echo of its own
+// message (the client renders its own optimistically). exceptID == "" sends to all.
+func (h *Hub) BroadcastExcept(roomID, exceptID string, message []byte) {
 	h.mu.Lock()
 	clients, ok := h.rooms[roomID]
 	if !ok || len(clients) == 0 {
@@ -62,6 +69,9 @@ func (h *Hub) Broadcast(roomID string, message []byte) {
 	// Copy client references to avoid holding the lock during I/O.
 	copied := make([]Client, 0, len(clients))
 	for _, c := range clients {
+		if c.ID() == exceptID {
+			continue
+		}
 		copied = append(copied, c)
 	}
 	h.mu.Unlock()

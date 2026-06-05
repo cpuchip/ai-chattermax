@@ -148,3 +148,25 @@ func TestHub_ConcurrentAccess(t *testing.T) {
 
 	// Verify we don't panic or deadlock.
 }
+
+func TestHub_BroadcastExcept(t *testing.T) {
+	h := NewHub()
+	a := newFakeClient("a")
+	b := newFakeClient("b")
+	c := newFakeClient("c")
+	h.Register("r1", a)
+	h.Register("r1", b)
+	h.Register("r1", c)
+
+	h.BroadcastExcept("r1", "a", []byte("hello"))
+
+	if got := len(a.Messages()); got != 0 {
+		t.Errorf("excluded sender a got %d messages, want 0", got)
+	}
+	for name, fc := range map[string]*fakeClient{"b": b, "c": c} {
+		msgs := fc.Messages()
+		if len(msgs) != 1 || string(msgs[0]) != "hello" {
+			t.Errorf("client %s got %v, want one [hello]", name, msgs)
+		}
+	}
+}
