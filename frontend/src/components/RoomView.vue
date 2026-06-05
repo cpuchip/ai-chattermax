@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { state, actions } from '../store'
+import { renderMarkdown } from '../lib/markdown'
+import { useScripturePanel } from '../composables/useScripturePanel'
+
+const { openDirect } = useScripturePanel()
+// Intercept clicks on churchofjesuschrist.org links → open the in-app panel.
+function onBodyClick(e: MouseEvent) {
+  const a = (e.target as HTMLElement).closest('a.cjc-link') as HTMLAnchorElement | null
+  if (!a) return
+  e.preventDefault()
+  openDirect({ reference: a.textContent?.trim() || 'Scripture', url: a.href })
+}
 
 const text = ref('')
 const scroller = ref<HTMLDivElement | null>(null)
@@ -55,7 +66,7 @@ watch(() => messages.value.length, async () => {
             <span v-if="m.senderKind === 'persona'" class="cm-badge">agent</span>
             <span class="cm-time">{{ timeOf(m.ts) }}</span>
           </div>
-          <div class="cm-bubble" :class="{ persona: m.senderKind === 'persona' && !isMine(m.senderId) }">{{ m.body }}</div>
+          <div class="cm-bubble cm-md" :class="{ persona: m.senderKind === 'persona' && !isMine(m.senderId) }" @click="onBodyClick" v-html="renderMarkdown(m.body)" />
         </div>
       </div>
     </div>
