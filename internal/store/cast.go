@@ -22,15 +22,22 @@ const maxCastPerRoom = 50
 // ResolveSubPersona finds or creates a cast member by name for (persona, room).
 // Auto-create on first use is the cast UX: the DM just speaks as "Grimble" and
 // Grimble exists. Case-insensitive match keeps "grimble" and "Grimble" one
-// character. Returns created=true when this use minted the character.
+// character. Cast names are ROOM-unique across personas — at a table, one name
+// is one character: if another persona already voices this name here, resolve
+// fails and the caller falls back to its own voice (two Grimbles confused the
+// 2026-06-10 Holodeck-3 table). Returns created=true when this use minted the
+// character.
 func (s *Store) ResolveSubPersona(ctx context.Context, personaID, roomID, name string) (SubPersona, bool, error) {
 	var sp SubPersona
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, persona_id, room_id, display_name FROM sub_personas
-		WHERE persona_id = $1 AND room_id = $2 AND lower(display_name) = lower($3)`,
-		personaID, roomID, name,
+		WHERE room_id = $1 AND lower(display_name) = lower($2)`,
+		roomID, name,
 	).Scan(&sp.ID, &sp.PersonaID, &sp.RoomID, &sp.DisplayName)
 	if err == nil {
+		if sp.PersonaID != personaID {
+			return SubPersona{}, false, fmt.Errorf("%q is already voiced by another persona in this room", sp.DisplayName)
+		}
 		return sp, false, nil
 	}
 	var n int
@@ -45,12 +52,15 @@ func (s *Store) ResolveSubPersona(ctx context.Context, personaID, roomID, name s
 	err = s.pool.QueryRow(ctx, `
 		INSERT INTO sub_personas (persona_id, room_id, display_name)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (persona_id, room_id, lower(display_name)) DO UPDATE SET display_name = sub_personas.display_name
+		ON CONFLICT (room_id, lower(display_name)) DO UPDATE SET display_name = sub_personas.display_name
 		RETURNING id, persona_id, room_id, display_name`,
 		personaID, roomID, name,
 	).Scan(&sp.ID, &sp.PersonaID, &sp.RoomID, &sp.DisplayName)
 	if err != nil {
 		return SubPersona{}, false, fmt.Errorf("create sub-persona: %w", err)
+	}
+	if sp.PersonaID != personaID { // lost a creation race to another persona
+		return SubPersona{}, false, fmt.Errorf("%q is already voiced by another persona in this room", sp.DisplayName)
 	}
 	return sp, true, nil
 }

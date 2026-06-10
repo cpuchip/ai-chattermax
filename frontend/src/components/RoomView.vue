@@ -137,17 +137,21 @@ const acItems = computed(() => {
   }
   const ch = state.currentDMId || state.currentRoomId
   const seen = new Set<string>()
-  const people: { name: string; kind: string }[] = []
+  const people: { name: string; kind: string; hint: string }[] = []
   for (const p of state.roster[ch] ?? []) {
-    if (!seen.has(p.name)) { seen.add(p.name); people.push({ name: p.name, kind: p.kind }) }
+    if (!seen.has(p.name)) { seen.add(p.name); people.push({ name: p.name, kind: p.kind, hint: p.kind === 'persona' ? 'agent' : '' }) }
+  }
+  // Cast members (DH-2): @Grimble routes to the persona who voices him.
+  for (const sp of state.cast[ch] ?? []) {
+    if (!seen.has(sp.displayName)) { seen.add(sp.displayName); people.push({ name: sp.displayName, kind: 'cast', hint: '▹ ' + (sp.personaName ?? 'cast') }) }
   }
   for (const m of state.registry) {
-    if (!seen.has(m.displayName)) { seen.add(m.displayName); people.push({ name: m.displayName, kind: 'human' }) }
+    if (!seen.has(m.displayName)) { seen.add(m.displayName); people.push({ name: m.displayName, kind: 'human', hint: '' }) }
   }
   return people
     .filter((p) => p.name.toLowerCase().replace(/\s/g, '').startsWith(q))
     .slice(0, 8)
-    .map((p) => ({ key: p.name, label: '@' + p.name, hint: p.kind === 'persona' ? 'agent' : '', help: '', insert: '@' + p.name.replace(/\s/g, '') + ' ' }))
+    .map((p) => ({ key: p.name, label: '@' + p.name, hint: p.hint, help: '', insert: '@' + p.name.replace(/\s/g, '') + ' ' }))
 })
 
 function acComplete(i = acIndex.value) {
