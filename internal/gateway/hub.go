@@ -88,6 +88,35 @@ func (h *Hub) broadcast(channel string, payload []byte, except *Client) {
 	}
 }
 
+// sendToUser enqueues a payload to every live connection of one user (used for
+// notification pushes, which target a person rather than a channel).
+func (h *Hub) sendToUser(userID string, payload []byte) {
+	h.mu.RLock()
+	targets := make([]*Client, 0, 2)
+	for c := range h.clients {
+		if c.who.ID == userID {
+			targets = append(targets, c)
+		}
+	}
+	h.mu.RUnlock()
+	for _, c := range targets {
+		c.enqueue(payload)
+	}
+}
+
+// setMood updates a connection's mood under the hub lock (roster readers hold
+// it too) and returns the channels to announce the change on.
+func (h *Hub) setMood(c *Client, mood string) []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	c.who.Mood = mood
+	chans := make([]string, 0, len(c.subs))
+	for ch := range c.subs {
+		chans = append(chans, ch)
+	}
+	return chans
+}
+
 // roster returns the distinct participants subscribed to a channel (deduped by ID).
 func (h *Hub) roster(channel string) []Participant {
 	h.mu.RLock()

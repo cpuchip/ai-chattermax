@@ -23,9 +23,9 @@ func (s *Store) UpsertUserBySubject(ctx context.Context, subject, displayName, e
 			email        = COALESCE(EXCLUDED.email, users.email),
 			avatar_url   = COALESCE(EXCLUDED.avatar_url, users.avatar_url),
 			last_seen_at = now()
-		RETURNING id, external_subject, display_name, COALESCE(email,''), COALESCE(avatar_url,''), created_at, last_seen_at`,
+		RETURNING id, external_subject, display_name, COALESCE(email,''), COALESCE(avatar_url,''), COALESCE(mood,''), created_at, last_seen_at`,
 		subject, displayName, nullIfEmpty(email), nullIfEmpty(avatar),
-	).Scan(&u.ID, &u.ExternalSubject, &u.DisplayName, &u.Email, &u.AvatarURL, &u.CreatedAt, &u.LastSeenAt)
+	).Scan(&u.ID, &u.ExternalSubject, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Mood, &u.CreatedAt, &u.LastSeenAt)
 	if err != nil {
 		return User{}, fmt.Errorf("upsert user: %w", err)
 	}
@@ -36,9 +36,9 @@ func (s *Store) UpsertUserBySubject(ctx context.Context, subject, displayName, e
 func (s *Store) GetUserByID(ctx context.Context, id string) (User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, external_subject, display_name, COALESCE(email,''), COALESCE(avatar_url,''), created_at, last_seen_at
+		SELECT id, external_subject, display_name, COALESCE(email,''), COALESCE(avatar_url,''), COALESCE(mood,''), created_at, last_seen_at
 		FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.ExternalSubject, &u.DisplayName, &u.Email, &u.AvatarURL, &u.CreatedAt, &u.LastSeenAt)
+	).Scan(&u.ID, &u.ExternalSubject, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Mood, &u.CreatedAt, &u.LastSeenAt)
 	if err != nil {
 		return User{}, err
 	}
@@ -67,10 +67,10 @@ func (s *Store) CreateSession(ctx context.Context, userID string) (string, error
 func (s *Store) SessionUser(ctx context.Context, token string) (User, bool, error) {
 	var u User
 	err := s.pool.QueryRow(ctx, `
-		SELECT u.id, u.external_subject, u.display_name, COALESCE(u.email,''), COALESCE(u.avatar_url,''), u.created_at, u.last_seen_at
+		SELECT u.id, u.external_subject, u.display_name, COALESCE(u.email,''), COALESCE(u.avatar_url,''), COALESCE(u.mood,''), u.created_at, u.last_seen_at
 		FROM sessions se JOIN users u ON u.id = se.user_id
 		WHERE se.token = $1 AND se.expires_at > now()`, token,
-	).Scan(&u.ID, &u.ExternalSubject, &u.DisplayName, &u.Email, &u.AvatarURL, &u.CreatedAt, &u.LastSeenAt)
+	).Scan(&u.ID, &u.ExternalSubject, &u.DisplayName, &u.Email, &u.AvatarURL, &u.Mood, &u.CreatedAt, &u.LastSeenAt)
 	if err != nil {
 		return User{}, false, nil //nolint:nilerr // absent/expired session is not an error
 	}
@@ -80,6 +80,12 @@ func (s *Store) SessionUser(ctx context.Context, token string) (User, bool, erro
 		token, fmt.Sprintf("%d seconds", int(sessionDuration.Seconds())))
 	_, _ = s.pool.Exec(ctx, `UPDATE users SET last_seen_at = now() WHERE id = $1`, u.ID)
 	return u, true, nil
+}
+
+// SetUserMood stores the user's roster mood emoji ("" clears it).
+func (s *Store) SetUserMood(ctx context.Context, userID, mood string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE users SET mood = $2 WHERE id = $1`, userID, mood)
+	return err
 }
 
 // DeleteSession removes a session (logout).

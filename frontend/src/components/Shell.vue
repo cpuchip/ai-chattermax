@@ -5,6 +5,7 @@ import Sidebar from './Sidebar.vue'
 import RoomView from './RoomView.vue'
 import RosterPanel from './RosterPanel.vue'
 import SettingsView from './SettingsView.vue'
+import AlertsView from './AlertsView.vue'
 import ScripturePanel from './ScripturePanel.vue'
 
 const room = computed(() => actions.currentRoom())
@@ -29,6 +30,9 @@ const activeLabel = computed(() => dm.value ? dm.value.otherName : (room.value ?
           <template v-if="room"> · {{ room.name.toUpperCase() }}</template>
         </span>
       </div>
+      <button class="cm-iconbtn cm-bell" @click="actions.openAlerts()" aria-label="Alerts">
+        🔔<span v-if="actions.unreadCount()" class="cm-bell-badge">{{ actions.unreadCount() }}</span>
+      </button>
       <button class="cm-iconbtn" @click="actions.toggleRoster()" aria-label="Roster">👥</button>
     </header>
 
@@ -36,6 +40,7 @@ const activeLabel = computed(() => dm.value ? dm.value.otherName : (room.value ?
 
     <RoomView v-if="state.ui.view === 'chat' && (state.currentRoomId || state.currentDMId)" />
     <SettingsView v-else-if="state.ui.view === 'settings'" />
+    <AlertsView v-else-if="state.ui.view === 'alerts'" />
     <section v-else class="cm-main">
       <p class="cm-empty" style="margin:auto">Pick a channel to begin.</p>
     </section>

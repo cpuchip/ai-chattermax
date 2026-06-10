@@ -70,7 +70,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) authenticate(r *http.Request) (who Participant, human *store.User, persona *store.Persona, ok bool) {
 	if u, found := h.resolve(r); found {
-		who = Participant{ID: u.ID, Name: u.DisplayName, Kind: "human", Avatar: u.AvatarURL}
+		who = Participant{ID: u.ID, Name: u.DisplayName, Kind: "human", Avatar: u.AvatarURL, Mood: u.Mood}
 		return who, &u, nil, true
 	}
 	if key := r.URL.Query().Get("key"); key != "" {
@@ -130,6 +130,8 @@ func (h *Handler) readPump(c *Client, human *store.User, persona *store.Persona)
 			}
 		case "reaction":
 			h.handleReaction(c, f, human, persona)
+		case "mood":
+			h.handleMood(c, f, human)
 		}
 	}
 }
@@ -182,6 +184,51 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 	// Broadcast to everyone in the channel except the sender (the sender's UI
 	// shows its own message optimistically — AX3-2 carried forward).
 	h.hub.broadcast(f.Channel, marshal(messageFrame{Type: "message", Channel: f.Channel, Message: msg}), c)
+	if kind == "room" {
+		h.notifyMentions(f.Channel, msg)
+	}
+}
+
+// notifyMentions resolves @tokens in a room message against the server's
+// members, persists a notification per mentioned user, and pushes a live
+// notification frame to their connections. Best-effort: failures log only.
+func (h *Handler) notifyMentions(roomID string, msg store.Message) {
+	ctx := context.Background()
+	members, err := h.store.MembersForRoom(ctx, roomID)
+	if err != nil {
+		log.Printf("gateway mentions: members: %v", err)
+		return
+	}
+	for _, uid := range store.MentionedUserIDs(msg.Body, msg.SenderID, members) {
+		id, createdAt, err := h.store.CreateMentionNotification(ctx, uid, msg.ID, roomID)
+		if err != nil {
+			log.Printf("gateway mentions: %v", err)
+			continue
+		}
+		snippet := msg.Body
+		if len(snippet) > 120 {
+			snippet = snippet[:120]
+		}
+		h.hub.sendToUser(uid, marshal(notificationFrame{Type: "notification", Notification: store.Notification{
+			ID: id, Kind: "mention", RoomID: roomID, MessageID: msg.ID,
+			From: msg.SenderName, Snippet: snippet, CreatedAt: createdAt,
+		}}))
+	}
+}
+
+// handleMood persists a human's roster mood and announces it to every channel
+// the connection is subscribed to.
+func (h *Handler) handleMood(c *Client, f clientFrame, human *store.User) {
+	if human == nil || len(f.Mood) > 32 {
+		return
+	}
+	if err := h.store.SetUserMood(context.Background(), human.ID, f.Mood); err != nil {
+		log.Printf("gateway mood: %v", err)
+		return
+	}
+	for _, ch := range h.hub.setMood(c, f.Mood) {
+		h.hub.broadcast(ch, marshal(moodFrame{Type: "mood", Channel: ch, Who: c.who}), nil)
+	}
 }
 
 // handleReaction validates and persists an emoji reaction, then broadcasts it to

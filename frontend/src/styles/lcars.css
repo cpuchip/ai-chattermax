@@ -156,6 +156,29 @@ input, textarea { font-family: inherit; }
 .cm-md a.cjc-link { color: var(--lcars-gold); text-decoration: none; border-bottom: 1px dotted var(--lcars-gold); cursor: pointer; }
 .cm-md a.cjc-link::after { content: " ✦"; font-size: .8em; opacity: .7; }
 
+/* Alerts (REM-3): bell badge + the mentions list. */
+.cm-bell { position: relative; }
+.cm-bell-badge { position: absolute; top: 0; right: 0; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: var(--lcars-orange); color: var(--lcars-text-dark); font-size: 10px; font-weight: 700; line-height: 15px; text-align: center; }
+.cm-alert { display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 10px; background: var(--lcars-panel-2); border: 1px solid transparent; color: var(--lcars-read); cursor: pointer; margin-bottom: 6px; }
+.cm-alert.unread { border-color: var(--lcars-orange); background: rgba(255,153,0,.08); }
+.cm-alert:hover { border-color: var(--lcars-gold); }
+.cm-alert-top { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
+.cm-alert-top .who { font-family: var(--font-lcars); color: var(--lcars-gold); }
+.cm-alert-top .where { color: var(--lcars-lavender); }
+.cm-alert-top .when { margin-left: auto; color: var(--lcars-text-muted); }
+.cm-alert-body { font-size: 13px; color: var(--lcars-read); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Mood (REM-3): roster emoji status + the my-mood picker. */
+.cm-rmood { font-size: 13px; }
+.cm-moodpick { display: flex; gap: 4px; padding: 4px 10px 10px; flex-wrap: wrap; }
+.cm-mood-opt { background: none; border: 1px solid var(--lcars-navy); border-radius: 10px; font-size: 15px; padding: 2px 6px; cursor: pointer; }
+.cm-mood-opt:hover { border-color: var(--lcars-gold); }
+.cm-mood-opt.on { border-color: var(--lcars-orange); background: rgba(255,153,0,.15); }
+
+/* Settings: respond-policy select. */
+.cm-select { display: block; background: #000; color: var(--lcars-read); border: 1px solid var(--lcars-navy); border-radius: 10px; padding: 6px 10px; font: inherit; margin-top: 4px; }
+.cm-select:focus { border-color: var(--lcars-orange); outline: none; }
+
 /* Roster: one-click DM button, visible on row hover. */
 .cm-rrow .cm-rdm { margin-left: auto; opacity: 0; transition: opacity .15s; background: none; border: 1px solid var(--lcars-navy); border-radius: 10px; color: var(--lcars-lavender); font-size: 12px; padding: 0 7px; cursor: pointer; }
 .cm-rrow:hover .cm-rdm { opacity: 1; }

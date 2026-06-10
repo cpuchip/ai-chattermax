@@ -1,7 +1,7 @@
 // The app store: a reactive singleton wiring the REST api + the gateway client
 // into view state. Components read `state` and call `actions`.
 import { reactive } from 'vue'
-import { api, type User, type Server, type Room, type Persona, type Message, type Participant, type RegistryMember, type DMSummary } from './api'
+import { api, type User, type Server, type Room, type Persona, type Message, type Notification, type Participant, type RegistryMember, type DMSummary } from './api'
 import { Gateway } from './gateway'
 
 interface State {
@@ -21,8 +21,9 @@ interface State {
   messages: Record<string, Message[]>
   roster: Record<string, Participant[]>
   typing: Record<string, Record<string, number>> // channel → who → expiry ms
+  notifications: Notification[]
   error: string
-  ui: { drawer: boolean; rosterOpen: boolean; view: 'chat' | 'settings' }
+  ui: { drawer: boolean; rosterOpen: boolean; view: 'chat' | 'settings' | 'alerts' }
 }
 
 export const state = reactive<State>({
@@ -42,6 +43,7 @@ export const state = reactive<State>({
   messages: {},
   roster: {},
   typing: {},
+  notifications: [],
   error: '',
   ui: { drawer: false, rosterOpen: false, view: 'chat' },
 })
@@ -68,6 +70,12 @@ function ensureGateway() {
       const i = rs.findIndex((r) => r.emoji === emoji && r.reactorId === who.id)
       if (op === 'add' && i === -1) rs.push({ emoji, reactorId: who.id, reactor: who.name, reactorKind: who.kind })
       if (op === 'remove' && i !== -1) rs.splice(i, 1)
+    },
+    onNotification: (n) => { state.notifications.unshift(n) },
+    onMood: (ch, who) => {
+      const p = state.roster[ch]?.find((x) => x.id === who.id)
+      if (p) p.mood = who.mood
+      if (state.me && who.id === state.me.id) state.me.mood = who.mood
     },
     onPresenceSnapshot: (ch, roster) => { state.roster[ch] = roster },
     onPresence: (ch, st, who) => {
@@ -116,6 +124,7 @@ export const actions = {
   async afterAuth() {
     ensureGateway()
     state.servers = await api.servers()
+    try { state.notifications = await api.notifications() } catch { state.notifications = [] }
     // Invite link: chat.ibeco.me/?join=<token> auto-joins that server.
     const joinTok = new URLSearchParams(location.search).get('join')
     if (joinTok) {
@@ -197,6 +206,27 @@ export const actions = {
       state.currentDMId = ''
       if (state.rooms.length) this.selectRoom(state.rooms[0].id)
     }
+  },
+
+  // REM-3 — mention alerts + mood.
+  unreadCount(): number { return state.notifications.filter((n) => !n.readAt).length },
+  openAlerts() { state.ui.view = 'alerts'; state.ui.drawer = false },
+  async openNotification(n: Notification) {
+    if (!n.readAt) {
+      n.readAt = new Date().toISOString()
+      try { await api.readNotifications([n.id]) } catch { /* ignore */ }
+    }
+    if (state.rooms.some((r) => r.id === n.roomId)) this.selectRoom(n.roomId)
+  },
+  async markAllAlertsRead() {
+    const now = new Date().toISOString()
+    for (const n of state.notifications) if (!n.readAt) n.readAt = now
+    try { await api.readNotifications() } catch { /* ignore */ }
+  },
+  setMood(mood: string) {
+    if (!state.me) return
+    state.me.mood = mood
+    gateway?.sendMood(mood)
   },
 
   toggleDrawer() { state.ui.drawer = !state.ui.drawer; if (state.ui.drawer) state.ui.rosterOpen = false },

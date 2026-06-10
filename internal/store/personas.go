@@ -13,9 +13,9 @@ func (s *Store) CreatePersona(ctx context.Context, serverID, ownerUserID, slug, 
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO personas (server_id, owner_user_id, slug, display_name, avatar_url, host_ref)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, dm_enabled, created_at`,
+		RETURNING id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, dm_enabled, respond_policy, created_at`,
 		serverID, ownerUserID, slug, displayName, nullIfEmpty(avatarURL), nullIfEmpty(hostRef),
-	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.CreatedAt)
+	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.RespondPolicy, &p.CreatedAt)
 	if err != nil {
 		return Persona{}, fmt.Errorf("insert persona: %w", err)
 	}
@@ -26,7 +26,7 @@ func (s *Store) CreatePersona(ctx context.Context, serverID, ownerUserID, slug, 
 // soft-deleted and hidden).
 func (s *Store) ListPersonasForServer(ctx context.Context, serverID string) ([]Persona, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, dm_enabled, created_at
+		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, dm_enabled, respond_policy, created_at
 		FROM personas WHERE server_id = $1 AND status = 'active' ORDER BY display_name`, serverID)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (s *Store) ListPersonasForServer(ctx context.Context, serverID string) ([]P
 	var out []Persona
 	for rows.Next() {
 		var p Persona
-		if err := rows.Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.RespondPolicy, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, p)
@@ -47,9 +47,9 @@ func (s *Store) ListPersonasForServer(ctx context.Context, serverID string) ([]P
 func (s *Store) GetPersona(ctx context.Context, id string) (Persona, error) {
 	var p Persona
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, dm_enabled, created_at
+		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, dm_enabled, respond_policy, created_at
 		FROM personas WHERE id = $1`, id,
-	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.CreatedAt)
+	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.RespondPolicy, &p.CreatedAt)
 	if err != nil {
 		return Persona{}, err
 	}
@@ -60,9 +60,9 @@ func (s *Store) GetPersona(ctx context.Context, id string) (Persona, error) {
 func (s *Store) PersonaByServerSlug(ctx context.Context, serverID, slug string) (Persona, error) {
 	var p Persona
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, dm_enabled, created_at
+		SELECT id, server_id, owner_user_id, slug, display_name, COALESCE(avatar_url,''), host_kind, COALESCE(host_ref,''), status, dm_enabled, respond_policy, created_at
 		FROM personas WHERE server_id = $1 AND slug = $2`, serverID, slug,
-	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.CreatedAt)
+	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.RespondPolicy, &p.CreatedAt)
 	if err != nil {
 		return Persona{}, err
 	}
@@ -146,15 +146,22 @@ func (s *Store) SetPersonaDMEnabled(ctx context.Context, personaID string, enabl
 	return err
 }
 
+// SetPersonaRespondPolicy sets how the persona's host decides to take a turn.
+// The CHECK constraint rejects anything outside all|mentioned|judgment.
+func (s *Store) SetPersonaRespondPolicy(ctx context.Context, personaID, policy string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE personas SET respond_policy = $2 WHERE id = $1`, personaID, policy)
+	return err
+}
+
 // ValidatePersonaKey resolves a raw key to its persona (active, key not revoked),
 // touching last_used_at. ok=false when the key is unknown or revoked.
 func (s *Store) ValidatePersonaKey(ctx context.Context, raw string) (Persona, bool, error) {
 	var p Persona
 	err := s.pool.QueryRow(ctx, `
-		SELECT p.id, p.server_id, p.owner_user_id, p.slug, p.display_name, COALESCE(p.avatar_url,''), p.host_kind, COALESCE(p.host_ref,''), p.status, p.dm_enabled, p.created_at
+		SELECT p.id, p.server_id, p.owner_user_id, p.slug, p.display_name, COALESCE(p.avatar_url,''), p.host_kind, COALESCE(p.host_ref,''), p.status, p.dm_enabled, p.respond_policy, p.created_at
 		FROM persona_keys k JOIN personas p ON p.id = k.persona_id
 		WHERE k.key_hash = $1 AND k.revoked_at IS NULL AND p.status = 'active'`, hashKey(raw),
-	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.CreatedAt)
+	).Scan(&p.ID, &p.ServerID, &p.OwnerUserID, &p.Slug, &p.DisplayName, &p.AvatarURL, &p.HostKind, &p.HostRef, &p.Status, &p.DMEnabled, &p.RespondPolicy, &p.CreatedAt)
 	if err != nil {
 		return Persona{}, false, nil //nolint:nilerr // unknown key is not an error
 	}

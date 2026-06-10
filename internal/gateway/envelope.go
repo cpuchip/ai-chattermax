@@ -18,6 +18,8 @@ type clientFrame struct {
 	MessageID string `json:"messageId,omitempty"`
 	Emoji     string `json:"emoji,omitempty"`
 	Op        string `json:"op,omitempty"` // add | remove
+	// Mood field (type == "mood").
+	Mood string `json:"mood,omitempty"`
 }
 
 // Participant is a presence/roster entry (deduped by ID across connections).
@@ -26,6 +28,7 @@ type Participant struct {
 	Name   string `json:"name"`
 	Kind   string `json:"kind"` // human | persona
 	Avatar string `json:"avatar,omitempty"`
+	Mood   string `json:"mood,omitempty"` // emoji status (humans, REM-3)
 }
 
 // Outbound frame shapes.
@@ -58,6 +61,17 @@ type typingFrame struct {
 	Type    string `json:"type"` // "typing"
 	Channel string `json:"channel"`
 	Who     string `json:"who"`
+}
+
+type notificationFrame struct {
+	Type         string             `json:"type"` // "notification"
+	Notification store.Notification `json:"notification"`
+}
+
+type moodFrame struct {
+	Type    string      `json:"type"` // "mood"
+	Channel string      `json:"channel"`
+	Who     Participant `json:"who"`
 }
 
 type reactionFrame struct {

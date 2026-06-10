@@ -70,6 +70,10 @@ async function toggleDM(p: Persona) {
   try { const np = await api.setPersonaDM(p.id, !p.dmEnabled); p.dmEnabled = np.dmEnabled }
   catch { /* ignore */ }
 }
+async function setPolicy(p: Persona, policy: string) {
+  try { const np = await api.setPersonaRespondPolicy(p.id, policy); p.respondPolicy = np.respondPolicy }
+  catch { /* ignore */ }
+}
 async function deletePersona(p: Persona) {
   if (!confirm(`Delete persona "${p.displayName}"? Its keys stop working and it leaves the server. Past messages are kept.`)) return
   await actions.deletePersona(p.id)
@@ -145,6 +149,13 @@ const fmtDate = (s?: string) => (s ? new Date(s).toLocaleString() : '')
             <input type="checkbox" :checked="p.dmEnabled" @change="toggleDM(p)" />
             Allow direct messages to this persona
           </label>
+
+          <label class="cm-label" style="margin-top:12px">Responds to</label>
+          <select class="cm-select" :value="p.respondPolicy || 'all'" @change="setPolicy(p, ($event.target as HTMLSelectElement).value)">
+            <option value="all">Every message (may stay silent)</option>
+            <option value="mentioned">Only when mentioned by name</option>
+            <option value="judgment">Its own judgment (licensed to chime in)</option>
+          </select>
 
           <label class="cm-label" style="margin-top:12px">Granted channels</label>
           <div v-if="!grants[p.id]?.length" class="cm-hint">Not in any channel yet.</div>

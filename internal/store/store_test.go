@@ -169,4 +169,72 @@ func TestStoreFullFlow(t *testing.T) {
 	if len(last.Reactions) != 1 || last.Reactions[0].Emoji != "👍" {
 		t.Fatalf("after remove = %+v", last.Reactions)
 	}
+
+	// notifications (REM-3): members lookup, create, list resolved, mark read
+	members, err := st.MembersForRoom(ctx, room.ID)
+	if err != nil || len(members) != 1 || members[0].UserID != u.ID {
+		t.Fatalf("members for room = %+v, err=%v", members, err)
+	}
+	nid, _, err := st.CreateMentionNotification(ctx, u.ID, pm.ID, room.ID)
+	if err != nil || nid == "" {
+		t.Fatalf("create notification: %v", err)
+	}
+	ns, err := st.ListNotifications(ctx, u.ID, 10)
+	if err != nil || len(ns) == 0 {
+		t.Fatalf("list notifications = %d, err=%v", len(ns), err)
+	}
+	if ns[0].From != "Gandalf" || ns[0].Snippet == "" || ns[0].ReadAt != nil {
+		t.Fatalf("notification resolved wrong: %+v", ns[0])
+	}
+	if err := st.MarkNotificationsRead(ctx, u.ID, []string{nid}); err != nil {
+		t.Fatalf("mark read: %v", err)
+	}
+	ns, _ = st.ListNotifications(ctx, u.ID, 10)
+	if ns[0].ReadAt == nil {
+		t.Fatal("notification should be read")
+	}
+
+	// respond_policy + mood round trips
+	if p.RespondPolicy != "all" {
+		t.Fatalf("default respond_policy = %q, want all", p.RespondPolicy)
+	}
+	if err := st.SetPersonaRespondPolicy(ctx, p.ID, "mentioned"); err != nil {
+		t.Fatalf("set respond_policy: %v", err)
+	}
+	if np, _ := st.GetPersona(ctx, p.ID); np.RespondPolicy != "mentioned" {
+		t.Fatalf("respond_policy = %q after set", np.RespondPolicy)
+	}
+	if err := st.SetPersonaRespondPolicy(ctx, p.ID, "bogus"); err == nil {
+		t.Fatal("bogus respond_policy must be rejected by the CHECK")
+	}
+	if err := st.SetUserMood(ctx, u.ID, "😎"); err != nil {
+		t.Fatalf("set mood: %v", err)
+	}
+	if nu, _ := st.GetUserByID(ctx, u.ID); nu.Mood != "😎" {
+		t.Fatalf("mood = %q after set", nu.Mood)
+	}
+}
+
+func TestMentionedUserIDs(t *testing.T) {
+	members := []Member{
+		{UserID: "u1", DisplayName: "Michael Stufflebeam"},
+		{UserID: "u2", DisplayName: "Claude Codetest"},
+		{UserID: "u3", DisplayName: "Claude Opus"}, // first-word collision with u2
+	}
+	got := MentionedUserIDs("hey @michael and @ClaudeCodetest, look at this", "u9", members)
+	if len(got) != 2 || got[0] != "u1" || got[1] != "u2" {
+		t.Fatalf("got %v, want [u1 u2]", got)
+	}
+	// Ambiguous first word matches nobody.
+	if got := MentionedUserIDs("@claude what do you think?", "u9", members); len(got) != 0 {
+		t.Fatalf("ambiguous first word must not match, got %v", got)
+	}
+	// The sender never mentions themselves.
+	if got := MentionedUserIDs("@michael note to self", "u1", members); len(got) != 0 {
+		t.Fatalf("self-mention must not notify, got %v", got)
+	}
+	// No @ tokens → nil fast path.
+	if got := MentionedUserIDs("michael stufflebeam is here", "u9", members); got != nil {
+		t.Fatalf("plain names without @ must not notify, got %v", got)
+	}
 }

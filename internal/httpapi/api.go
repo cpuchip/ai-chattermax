@@ -47,6 +47,8 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/personas/{id}/grants/{roomId}", a.revokePersonaGrant)
 	mux.HandleFunc("GET /api/rooms/{id}/messages", a.roomMessages)
 	mux.HandleFunc("GET /api/rooms/{id}/search", a.roomSearch)
+	mux.HandleFunc("GET /api/notifications", a.listNotifications)
+	mux.HandleFunc("POST /api/notifications/read", a.readNotifications)
 	mux.HandleFunc("GET /api/dms", a.listMyDMs)
 	mux.HandleFunc("POST /api/dms", a.openDM)
 	mux.HandleFunc("GET /api/dms/{id}/messages", a.dmMessages)
@@ -73,9 +75,35 @@ func (a *API) PersonaRoomsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"persona": map[string]string{"slug": p.Slug, "displayName": p.DisplayName},
+		"persona": map[string]string{"slug": p.Slug, "displayName": p.DisplayName, "respondPolicy": p.RespondPolicy},
 		"rooms":   orEmpty(rooms),
 	})
+}
+
+// listNotifications returns the caller's latest mention alerts.
+func (a *API) listNotifications(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFrom(r.Context())
+	ns, err := a.store.ListNotifications(r.Context(), u.ID, 50)
+	if err != nil {
+		writeErr(w, 500, "could not load notifications")
+		return
+	}
+	writeJSON(w, 200, orEmpty(ns))
+}
+
+// readNotifications marks the given ids read; with an empty body or no ids it
+// marks everything read.
+func (a *API) readNotifications(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFrom(r.Context())
+	var in struct {
+		IDs []string `json:"ids"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in) // empty body = mark all
+	if err := a.store.MarkNotificationsRead(r.Context(), u.ID, in.IDs); err != nil {
+		writeErr(w, 500, "could not mark notifications read")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // PersonaDMsHandler is authed by a PERSONA KEY: a host gets the persona's DM
@@ -470,13 +498,26 @@ func (a *API) updatePersona(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		DMEnabled *bool `json:"dmEnabled"`
+		DMEnabled     *bool   `json:"dmEnabled"`
+		RespondPolicy *string `json:"respondPolicy"`
 	}
 	if !decode(w, r, &in) {
 		return
 	}
 	if in.DMEnabled != nil {
 		if err := a.store.SetPersonaDMEnabled(r.Context(), p.ID, *in.DMEnabled); err != nil {
+			writeErr(w, 500, "could not update persona")
+			return
+		}
+	}
+	if in.RespondPolicy != nil {
+		switch *in.RespondPolicy {
+		case "all", "mentioned", "judgment":
+		default:
+			writeErr(w, 400, "respondPolicy must be all, mentioned, or judgment")
+			return
+		}
+		if err := a.store.SetPersonaRespondPolicy(r.Context(), p.ID, *in.RespondPolicy); err != nil {
 			writeErr(w, 500, "could not update persona")
 			return
 		}

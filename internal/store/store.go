@@ -25,6 +25,7 @@ type User struct {
 	DisplayName     string     `json:"displayName"`
 	Email           string     `json:"-"`
 	AvatarURL       string     `json:"avatarUrl,omitempty"`
+	Mood            string     `json:"mood,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	LastSeenAt      time.Time  `json:"lastSeenAt"`
 }
@@ -62,7 +63,10 @@ type Persona struct {
 	HostRef     string    `json:"hostRef,omitempty"`
 	Status      string    `json:"status"`
 	DMEnabled   bool      `json:"dmEnabled"`
-	CreatedAt   time.Time `json:"createdAt"`
+	// RespondPolicy: all | mentioned | judgment — how the persona's host decides
+	// to take a turn on a room message (REM-3).
+	RespondPolicy string    `json:"respondPolicy"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 // PersonaKey is a minted key's metadata (never the hash or raw value). Surfaced
