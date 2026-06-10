@@ -155,7 +155,19 @@ Each PR independently shippable; nothing touches the substrate dispatch engine.
   the asked message, beat at 9s, cited answer at 48s, 👀 off right after. Eyes
   also come off on turn error (proven against a real Fireworks 503) and on
   SILENCE.
-- **⏳ Track M:** not started (next PR).
+- **✅ Track M SHIPPED + PROVEN ON PROD (2026-06-10, `81ab15b`):** mention loop
+  verified live end-to-end in one exchange — asked chattercode to echo
+  "@ClaudeCodetest", its reply at 9.1s produced a **live notification frame at
+  9.2s** (persona-authored mentions notify, the D&D case), REST list resolved
+  it, mark-all-read 204. Mood loop verified live (set → broadcast 100ms →
+  clear). respond_policy: gate race-clean in tests; prod plumbing verified
+  (host logs `respond_policy: all` from the rooms poll, 30s refresh) — the
+  live `mentioned` flip awaits Michael's Settings dropdown (owner-only PATCH).
+  Simplification vs the spec sketch: no message_mentions table — the
+  notifications table alone serves the alerts UI; persona routing parses live.
+- **Rename done (2026-06-10):** persona_host display_name + prompt
+  Codewright → Chattercode (Michael's call) — the identity split is gone at
+  the source; the framing bridge now no-ops.
 
 ### Found-and-fixed during E's live verification — the SILENCE day
 
