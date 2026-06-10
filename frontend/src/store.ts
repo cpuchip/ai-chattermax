@@ -106,11 +106,18 @@ export const actions = {
       history.replaceState({}, '', location.pathname)
       if (state.currentServerId) return
     }
-    if (state.servers.length) await this.selectServer(state.servers[0].id)
+    // Sticky server: restore the last server selected on this device, if you're
+    // still a member; otherwise fall back to the first server.
+    const remembered = localStorage.getItem('cm.lastServerId')
+    const pick = (remembered && state.servers.some(s => s.id === remembered))
+      ? remembered
+      : state.servers[0]?.id
+    if (pick) await this.selectServer(pick)
   },
 
   async selectServer(id: string) {
     state.currentServerId = id
+    try { localStorage.setItem('cm.lastServerId', id) } catch { /* private mode */ }
     state.currentServerToken = ''
     state.currentDMId = ''
     state.rooms = await api.rooms(id)

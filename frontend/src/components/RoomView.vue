@@ -29,6 +29,15 @@ function submit() {
   actions.send(text.value)
   text.value = ''
 }
+// Enter sends; Shift+Enter inserts a newline (the textarea's default, so we
+// only intercept the bare Enter). Keeps the chat-native "type and hit enter"
+// while allowing multi-line messages (code snippets, paragraphs).
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault()
+    submit()
+  }
+}
 async function deleteDM() {
   if (!dm.value) return
   if (!confirm(`Delete this conversation with ${dm.value.otherName}? Messages are removed for both of you.`)) return
@@ -72,7 +81,8 @@ watch(() => messages.value.length, async () => {
     </div>
 
     <form class="cm-composer" @submit.prevent="submit">
-      <input v-model="text" class="cm-input" :placeholder="placeholder" />
+      <textarea v-model="text" class="cm-input" rows="1" :placeholder="placeholder"
+                @keydown="onKeydown" />
       <button type="submit" class="cm-send">Send</button>
     </form>
   </section>
