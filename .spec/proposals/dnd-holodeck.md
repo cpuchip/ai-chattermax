@@ -279,6 +279,13 @@ With D1–D6, the flow is composition, not new architecture:
   block added to dm-assistant/npc-ally seeds. Proven live: "I lunge! 🎲 `1d20+5`
   → [6] +5 = **11** right at it" in 100ms.
 
+- **✅ [comment] flavor + clickable strip controls (2026-06-10, `bb7d7e2`):**
+  any command (block or inline) takes a trailing `[comment]` rendered as
+  flavor — `/roll 1d20+5 [swinging at the goblin]` → "… = **17** — *swinging
+  at the goblin*" (proven live). The initiative strip gained Next ▸ / ✕ End
+  buttons for the round's starter + server owner/admins — they send the same
+  /init commands the server gates, so the log of record is identical either way.
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
