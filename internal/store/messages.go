@@ -83,7 +83,13 @@ func (s *Store) ListRoomMessages(ctx context.Context, roomID string, limit int) 
 		}
 		out = append(out, m)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := s.attachReactions(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // SearchRoomMessages runs a full-text search over a room's messages.

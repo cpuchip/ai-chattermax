@@ -239,5 +239,11 @@ func (s *Store) ListDMMessages(ctx context.Context, dmID string, limit int) ([]M
 		}
 		out = append(out, m)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := s.attachReactions(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }

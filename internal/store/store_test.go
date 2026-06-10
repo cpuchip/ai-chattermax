@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -25,12 +27,19 @@ func testStore(t *testing.T) (*Store, context.Context) {
 		t.Fatalf("open: %v", err)
 	}
 	t.Cleanup(pool.Close)
-	sql, err := os.ReadFile("../../migrations/0001_init.sql")
-	if err != nil {
-		t.Fatalf("read migration: %v", err)
+	files, err := filepath.Glob("../../migrations/*.sql")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("glob migrations: %v (found %d)", err, len(files))
 	}
-	if _, err := pool.Exec(ctx, string(sql)); err != nil {
-		t.Fatalf("apply schema: %v", err)
+	sort.Strings(files) // lexical order, same as the boot-time runner
+	for _, f := range files {
+		sql, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatalf("read migration %s: %v", f, err)
+		}
+		if _, err := pool.Exec(ctx, string(sql)); err != nil {
+			t.Fatalf("apply %s: %v", f, err)
+		}
 	}
 	return New(pool), ctx
 }
@@ -119,5 +128,45 @@ func TestStoreFullFlow(t *testing.T) {
 	hits, err := st.SearchRoomMessages(ctx, room.ID, "traveler", 10)
 	if err != nil || len(hits) != 1 {
 		t.Fatalf("FTS = %d hits, err=%v", len(hits), err)
+	}
+
+	// reactions: human + persona on the persona's message, idempotent add,
+	// channel guard, backfill on history, remove
+	if ok, _ := st.MessageInChannel(ctx, pm.ID, room.ID); !ok {
+		t.Fatal("message should be in its own room")
+	}
+	if ok, _ := st.MessageInChannel(ctx, pm.ID, uniq("other-channel")); ok {
+		t.Fatal("message must not match a foreign channel")
+	}
+	if err := st.AddReaction(ctx, pm.ID, &u.ID, nil, "👍"); err != nil {
+		t.Fatalf("add human reaction: %v", err)
+	}
+	if err := st.AddReaction(ctx, pm.ID, &u.ID, nil, "👍"); err != nil {
+		t.Fatalf("re-add must be a no-op, got: %v", err)
+	}
+	if err := st.AddReaction(ctx, pm.ID, nil, &p.ID, "👀"); err != nil {
+		t.Fatalf("add persona reaction: %v", err)
+	}
+	msgs, err = st.ListRoomMessages(ctx, room.ID, 10)
+	if err != nil {
+		t.Fatalf("history with reactions: %v", err)
+	}
+	last := msgs[len(msgs)-1]
+	if len(last.Reactions) != 2 {
+		t.Fatalf("backfill = %d reactions, want 2: %+v", len(last.Reactions), last.Reactions)
+	}
+	if last.Reactions[0].Emoji != "👍" || last.Reactions[0].ReactorKind != "human" || last.Reactions[0].ReactorName != "Tester" {
+		t.Fatalf("human reaction resolved wrong: %+v", last.Reactions[0])
+	}
+	if last.Reactions[1].Emoji != "👀" || last.Reactions[1].ReactorKind != "persona" || last.Reactions[1].ReactorName != "Gandalf" {
+		t.Fatalf("persona reaction resolved wrong: %+v", last.Reactions[1])
+	}
+	if err := st.RemoveReaction(ctx, pm.ID, nil, &p.ID, "👀"); err != nil {
+		t.Fatalf("remove persona reaction: %v", err)
+	}
+	msgs, _ = st.ListRoomMessages(ctx, room.ID, 10)
+	last = msgs[len(msgs)-1]
+	if len(last.Reactions) != 1 || last.Reactions[0].Emoji != "👍" {
+		t.Fatalf("after remove = %+v", last.Reactions)
 	}
 }

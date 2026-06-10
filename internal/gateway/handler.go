@@ -128,6 +128,8 @@ func (h *Handler) readPump(c *Client, human *store.User, persona *store.Persona)
 			if f.Channel != "" {
 				h.hub.broadcast(f.Channel, marshal(typingFrame{Type: "typing", Channel: f.Channel, Who: c.who.Name}), c)
 			}
+		case "reaction":
+			h.handleReaction(c, f, human, persona)
 		}
 	}
 }
@@ -180,6 +182,48 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 	// Broadcast to everyone in the channel except the sender (the sender's UI
 	// shows its own message optimistically — AX3-2 carried forward).
 	h.hub.broadcast(f.Channel, marshal(messageFrame{Type: "message", Channel: f.Channel, Message: msg}), c)
+}
+
+// handleReaction validates and persists an emoji reaction, then broadcasts it to
+// the whole channel (sender included — reactions are idempotent, so no optimistic
+//-UI special case). The MessageInChannel guard stops cross-channel UUID guessing.
+func (h *Handler) handleReaction(c *Client, f clientFrame, human *store.User, persona *store.Persona) {
+	if f.Channel == "" || f.MessageID == "" || f.Emoji == "" || len(f.Emoji) > 32 {
+		return
+	}
+	if f.Op != "add" && f.Op != "remove" {
+		return
+	}
+	if _, ok := h.channelKind(c, f.Channel, human, persona); !ok {
+		return
+	}
+	ctx := context.Background()
+	if ok, err := h.store.MessageInChannel(ctx, f.MessageID, f.Channel); err != nil || !ok {
+		return
+	}
+	var userID, personaID *string
+	switch {
+	case human != nil:
+		userID = &human.ID
+	case persona != nil:
+		personaID = &persona.ID
+	default:
+		return
+	}
+	var err error
+	if f.Op == "add" {
+		err = h.store.AddReaction(ctx, f.MessageID, userID, personaID, f.Emoji)
+	} else {
+		err = h.store.RemoveReaction(ctx, f.MessageID, userID, personaID, f.Emoji)
+	}
+	if err != nil {
+		log.Printf("gateway reaction: %v", err)
+		return
+	}
+	h.hub.broadcast(f.Channel, marshal(reactionFrame{
+		Type: "reaction", Channel: f.Channel, MessageID: f.MessageID,
+		Emoji: f.Emoji, Op: f.Op, Who: c.who,
+	}), nil)
 }
 
 func (h *Handler) sendHistory(c *Client, channel, kind string, limit int) {

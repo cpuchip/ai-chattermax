@@ -156,6 +156,27 @@ input, textarea { font-family: inherit; }
 .cm-md a.cjc-link { color: var(--lcars-gold); text-decoration: none; border-bottom: 1px dotted var(--lcars-gold); cursor: pointer; }
 .cm-md a.cjc-link::after { content: " ✦"; font-size: .8em; opacity: .7; }
 
+/* Roster: one-click DM button, visible on row hover. */
+.cm-rrow .cm-rdm { margin-left: auto; opacity: 0; transition: opacity .15s; background: none; border: 1px solid var(--lcars-navy); border-radius: 10px; color: var(--lcars-lavender); font-size: 12px; padding: 0 7px; cursor: pointer; }
+.cm-rrow:hover .cm-rdm { opacity: 1; }
+.cm-rrow .cm-rdm:hover { border-color: var(--lcars-gold); color: var(--lcars-gold); }
+
+/* Reactions: chips under the bubble; ☺+ appears on message hover. */
+.cm-reactions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.cm-msg.mine .cm-reactions { justify-content: flex-end; }
+.cm-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 12px; background: var(--lcars-panel-2); border: 1px solid var(--lcars-navy); color: var(--lcars-read); font-size: 13px; cursor: pointer; }
+.cm-chip .n { font-size: 11px; color: var(--lcars-lavender); }
+.cm-chip.mine { border-color: var(--lcars-orange); background: rgba(255,153,0,.12); }
+.cm-chip:hover { border-color: var(--lcars-gold); }
+.cm-reactwrap { position: relative; flex: none; align-self: flex-start; margin-top: 22px; }
+.cm-react-btn { opacity: 0; transition: opacity .15s; background: none; border: 1px solid var(--lcars-navy); border-radius: 10px; color: var(--lcars-lavender); font-size: 12px; padding: 1px 7px; cursor: pointer; }
+.cm-msg:hover .cm-react-btn, .cm-react-btn:focus { opacity: 1; }
+.cm-react-btn:hover { border-color: var(--lcars-gold); color: var(--lcars-gold); }
+.cm-react-pop { position: absolute; z-index: 30; top: -38px; right: 0; display: flex; gap: 2px; padding: 5px 7px; border-radius: 14px; background: #000; border: 1px solid var(--lcars-lavender); box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+.cm-msg.mine .cm-react-pop { right: auto; left: 0; }
+.cm-react-opt { background: none; border: none; font-size: 17px; padding: 2px 4px; cursor: pointer; border-radius: 8px; }
+.cm-react-opt:hover { background: var(--lcars-panel-2); }
+
 /* "X is typing…" — reserves a thin line so the composer doesn't jump. */
 .cm-typing { height: 18px; padding: 0 18px; font-size: 12px; color: var(--lcars-lavender); opacity: 0; transition: opacity .2s; display: flex; align-items: center; gap: 6px; }
 .cm-typing.on { opacity: .85; }

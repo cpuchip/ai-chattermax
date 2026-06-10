@@ -5,7 +5,8 @@ export interface Server { id: string; slug: string; name: string; ownerUserId: s
 export interface Room { id: string; serverId: string; slug: string; name: string; visibility: string; topic?: string }
 export interface Persona { id: string; serverId: string; ownerUserId: string; slug: string; displayName: string; hostKind: string; hostRef?: string; status: string; dmEnabled: boolean; avatarUrl?: string }
 export interface PersonaKey { id: string; label?: string; createdAt: string; lastUsedAt?: string; revokedAt?: string }
-export interface Message { id: string; roomId?: string; dmId?: string; senderId: string; sender: string; senderKind: string; senderAvatar?: string; body: string; ts: string }
+export interface Reaction { emoji: string; reactorId: string; reactor: string; reactorKind: string }
+export interface Message { id: string; roomId?: string; dmId?: string; senderId: string; sender: string; senderKind: string; senderAvatar?: string; body: string; ts: string; reactions?: Reaction[] }
 export interface Participant { id: string; name: string; kind: string; avatar?: string }
 export interface RegistryMember { userId: string; displayName: string; avatarUrl?: string; role: string; personas: Persona[] }
 export interface DMSummary { id: string; kind: string; otherId: string; otherName: string; otherKind: string }

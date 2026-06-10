@@ -9,6 +9,7 @@ export interface GatewayHandlers {
   onPresenceSnapshot?: (channel: string, roster: Participant[]) => void
   onPresence?: (channel: string, state: string, who: Participant) => void
   onTyping?: (channel: string, who: string) => void
+  onReaction?: (channel: string, messageId: string, emoji: string, op: string, who: Participant) => void
   onStatus?: (connected: boolean) => void
 }
 
@@ -52,6 +53,10 @@ export class Gateway {
     this.rawSend({ type: 'message', channel, body })
   }
 
+  sendReaction(channel: string, messageId: string, emoji: string, op: 'add' | 'remove') {
+    this.rawSend({ type: 'reaction', channel, messageId, emoji, op })
+  }
+
   private rawSubscribe(channel: string) {
     this.rawSend({ type: 'subscribe', channels: [channel] })
   }
@@ -72,6 +77,7 @@ export class Gateway {
         else if (f.state && f.who) this.handlers.onPresence?.(f.channel, f.state, f.who)
         break
       case 'typing': if (f.who) this.handlers.onTyping?.(f.channel, f.who); break
+      case 'reaction': this.handlers.onReaction?.(f.channel, f.messageId, f.emoji, f.op, f.who); break
     }
   }
 }

@@ -94,4 +94,5 @@ type Message struct {
 	SenderAvatar string  `json:"senderAvatar,omitempty"`
 	Body       string    `json:"body"`
 	CreatedAt  time.Time `json:"ts"`
+	Reactions  []Reaction `json:"reactions,omitempty"`
 }

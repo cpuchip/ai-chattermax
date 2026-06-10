@@ -24,6 +24,32 @@ const isMine = (id: string) => state.me && id === state.me.id
 const timeOf = (ts: string) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 const initial = (s: string) => s[0]?.toUpperCase() ?? '?'
 
+// Reactions: hover a message → ☺+ → fixed palette; chips group by emoji.
+// Optimistic own messages (id 'local-…') have no server id yet, so no reactions.
+const PALETTE = ['👍', '❤️', '😂', '🎉', '👀', '🤔']
+const pickerFor = ref('')
+function togglePicker(messageId: string) { pickerFor.value = pickerFor.value === messageId ? '' : messageId }
+function pick(messageId: string, emoji: string) {
+  actions.toggleReaction(messageId, emoji)
+  pickerFor.value = ''
+}
+function chips(m: { reactions?: { emoji: string; reactorId: string; reactor: string }[] }) {
+  const by = new Map<string, { emoji: string; count: number; mine: boolean; names: string[] }>()
+  for (const r of m.reactions ?? []) {
+    const c = by.get(r.emoji) ?? { emoji: r.emoji, count: 0, mine: false, names: [] }
+    c.count++
+    c.names.push(r.reactor)
+    if (state.me && r.reactorId === state.me.id) c.mine = true
+    by.set(r.emoji, c)
+  }
+  return [...by.values()]
+}
+function onDocClick(e: MouseEvent) {
+  if (!(e.target as HTMLElement).closest('.cm-reactwrap')) pickerFor.value = ''
+}
+onMounted(() => document.addEventListener('click', onDocClick))
+onUnmounted(() => document.removeEventListener('click', onDocClick))
+
 // "X is typing…" — a 1s tick makes expiry reactive; entries past their expiry
 // drop out (the persona-host refreshes every 3s while a turn runs).
 const nowTick = ref(Date.now())
@@ -96,6 +122,18 @@ watch(() => messages.value.length, async () => {
             <span class="cm-time">{{ timeOf(m.ts) }}</span>
           </div>
           <div class="cm-bubble cm-md" :class="{ persona: m.senderKind === 'persona' && !isMine(m.senderId) }" @click="onBodyClick" v-html="renderMarkdown(m.body)" />
+          <div v-if="chips(m).length || pickerFor === m.id" class="cm-reactions">
+            <button v-for="c in chips(m)" :key="c.emoji" class="cm-chip" :class="{ mine: c.mine }"
+                    :title="c.names.join(', ')" @click="actions.toggleReaction(m.id, c.emoji)">
+              {{ c.emoji }} <span class="n">{{ c.count }}</span>
+            </button>
+          </div>
+        </div>
+        <div v-if="!m.id.startsWith('local-')" class="cm-reactwrap">
+          <button class="cm-react-btn" title="Add reaction" @click.stop="togglePicker(m.id)">☺+</button>
+          <div v-if="pickerFor === m.id" class="cm-react-pop">
+            <button v-for="e in PALETTE" :key="e" class="cm-react-opt" @click.stop="pick(m.id, e)">{{ e }}</button>
+          </div>
         </div>
       </div>
     </div>

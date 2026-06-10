@@ -61,6 +61,14 @@ function ensureGateway() {
     // "<persona> is typing…" — refreshed every ~3s by the persona-host; we keep
     // a short expiry so it clears on its own if the turn ends without a message.
     onTyping: (ch, who) => { (state.typing[ch] ||= {})[who] = Date.now() + 6000 },
+    onReaction: (ch, messageId, emoji, op, who) => {
+      const msg = state.messages[ch]?.find((m) => m.id === messageId)
+      if (!msg) return
+      const rs = msg.reactions ||= []
+      const i = rs.findIndex((r) => r.emoji === emoji && r.reactorId === who.id)
+      if (op === 'add' && i === -1) rs.push({ emoji, reactorId: who.id, reactor: who.name, reactorKind: who.kind })
+      if (op === 'remove' && i !== -1) rs.splice(i, 1)
+    },
     onPresenceSnapshot: (ch, roster) => { state.roster[ch] = roster },
     onPresence: (ch, st, who) => {
       const list = state.roster[ch] ||= []
@@ -196,6 +204,22 @@ export const actions = {
   closeDrawers() { state.ui.drawer = false; state.ui.rosterOpen = false },
   openSettings() { state.ui.view = 'settings'; state.ui.drawer = false },
   openChat() { state.ui.view = 'chat' },
+
+  // Toggle my reaction on a message. The server broadcasts back to everyone
+  // including me, and onReaction's idempotent patch applies it — but we also
+  // patch optimistically so the chip responds instantly.
+  toggleReaction(messageId: string, emoji: string) {
+    const ch = state.currentDMId || state.currentRoomId
+    if (!ch || !state.me || messageId.startsWith('local-')) return
+    const msg = state.messages[ch]?.find((m) => m.id === messageId)
+    if (!msg) return
+    const rs = msg.reactions ||= []
+    const i = rs.findIndex((r) => r.emoji === emoji && r.reactorId === state.me!.id)
+    const op = i === -1 ? 'add' : 'remove'
+    if (op === 'add') rs.push({ emoji, reactorId: state.me.id, reactor: state.me.displayName, reactorKind: 'human' })
+    else rs.splice(i, 1)
+    gateway?.sendReaction(ch, messageId, emoji, op)
+  },
 
   send(body: string) {
     const ch = state.currentDMId || state.currentRoomId
