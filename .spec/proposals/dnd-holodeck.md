@@ -259,6 +259,14 @@ With D1–D6, the flow is composition, not new architecture:
     after an already-answered turn-zero may re-answer (watch item, same family
     as the SILENCE-row accumulation).
 
+- **✅ D8 initiative SHIPPED + PROVEN LIVE (2026-06-10, `170cb3e`):** full flow
+  in 200ms on prod — start (panel frame) → `/init +3` (server rolled [4]+3=7) →
+  `/init add Grimble +2` ([18]+2=20, sorted above) → `/init next` (marker on
+  Grimble + "Round 1 — **Grimble**'s turn") → `/init end` (panel cleared).
+  Ratified: sticky strip · starter+admins+personas control · chattermax-owned
+  state. Subscribe backfill keeps the panel across reloads. Phase-3 tie-in
+  pending: `/init` with no mod pulls DEX from the dnd-tools sheet.
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
