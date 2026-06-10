@@ -157,6 +157,10 @@ func (h *Handler) handleSubscribe(c *Client, channel string, human *store.User, 
 		if r, ok, _ := h.store.ActiveInitiative(context.Background(), channel); ok {
 			c.enqueue(marshal(initiativeFrame{Type: "initiative", Channel: channel, Round: r}))
 		}
+		// The room's cast (DH-2) — roster nesting survives reloads too.
+		if cast, err := h.store.RoomCast(context.Background(), channel); err == nil && len(cast) > 0 {
+			c.enqueue(marshal(castFrame{Type: "cast", Channel: channel, Cast: cast}))
+		}
 	}
 	h.hub.broadcast(channel, marshal(presenceFrame{Type: "presence", Channel: channel, State: "join", Who: &c.who}), c)
 }
@@ -200,7 +204,22 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 	case persona != nil && kind == "dm":
 		msg, err = h.store.InsertDMPersonaMessage(ctx, f.Channel, persona.ID, f.Body)
 	case persona != nil:
-		msg, err = h.store.InsertRoomPersonaMessage(ctx, f.Channel, persona.ID, nil, f.Body)
+		// Cast attribution (DH-2): a persona may speak as a named cast member,
+		// auto-created on first use ("Grimble exists because the DM spoke as
+		// him"). Resolution failure falls back to the persona's own name —
+		// the line must never be lost over attribution.
+		var subID *string
+		if f.SubPersona != "" {
+			if sp, created, serr := h.store.ResolveSubPersona(ctx, persona.ID, f.Channel, f.SubPersona); serr == nil {
+				subID = &sp.ID
+				if created {
+					h.broadcastCast(ctx, f.Channel)
+				}
+			} else {
+				log.Printf("gateway cast resolve %q: %v", f.SubPersona, serr)
+			}
+		}
+		msg, err = h.store.InsertRoomPersonaMessage(ctx, f.Channel, persona.ID, subID, f.Body)
 	}
 	if err != nil {
 		log.Printf("gateway persist message: %v", err)
@@ -298,6 +317,16 @@ func (h *Handler) runCommand(c *Client, f clientFrame, kind, trimmed string, hum
 		c.enqueue(marshal(errorFrame{Type: "error", Message: "unknown command /" + cmd + " — try /roll, /init, /me, /mood"}))
 		return "", true
 	}
+}
+
+// broadcastCast pushes the room's full cast list (roster nesting refresh).
+func (h *Handler) broadcastCast(ctx context.Context, channel string) {
+	cast, err := h.store.RoomCast(ctx, channel)
+	if err != nil {
+		log.Printf("gateway cast: %v", err)
+		return
+	}
+	h.hub.broadcast(channel, marshal(castFrame{Type: "cast", Channel: channel, Cast: cast}), nil)
 }
 
 // handleMood persists a human's roster mood and announces it to every channel

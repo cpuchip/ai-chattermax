@@ -1,7 +1,7 @@
 // The app store: a reactive singleton wiring the REST api + the gateway client
 // into view state. Components read `state` and call `actions`.
 import { reactive } from 'vue'
-import { api, type Command, type InitiativeRound, type User, type Server, type Room, type Persona, type Message, type Notification, type Participant, type RegistryMember, type DMSummary } from './api'
+import { api, type Command, type InitiativeRound, type SubPersona, type User, type Server, type Room, type Persona, type Message, type Notification, type Participant, type RegistryMember, type DMSummary } from './api'
 import { Gateway } from './gateway'
 
 interface State {
@@ -24,6 +24,7 @@ interface State {
   notifications: Notification[]
   commands: Command[]
   initiative: Record<string, InitiativeRound | undefined> // channel → active round
+  cast: Record<string, SubPersona[]> // channel → cast members (DH-2)
   error: string
   ui: { drawer: boolean; rosterOpen: boolean; view: 'chat' | 'settings' | 'alerts' }
 }
@@ -48,6 +49,7 @@ export const state = reactive<State>({
   notifications: [],
   commands: [],
   initiative: {},
+  cast: {},
   error: '',
   ui: { drawer: false, rosterOpen: false, view: 'chat' },
 })
@@ -80,6 +82,7 @@ function ensureGateway() {
       if (round.active) state.initiative[ch] = round
       else delete state.initiative[ch]
     },
+    onCast: (ch, cast) => { state.cast[ch] = cast },
     onMood: (ch, who) => {
       const p = state.roster[ch]?.find((x) => x.id === who.id)
       if (p) p.mood = who.mood

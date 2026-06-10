@@ -179,6 +179,10 @@ input, textarea { font-family: inherit; }
 .cm-select { display: block; background: #000; color: var(--lcars-read); border: 1px solid var(--lcars-navy); border-radius: 10px; padding: 6px 10px; font: inherit; margin-top: 4px; }
 .cm-select:focus { border-color: var(--lcars-orange); outline: none; }
 
+/* Roster: cast members nested under the persona that voices them (DH-2). */
+.cm-rcast { margin-left: 18px; padding-top: 3px; padding-bottom: 3px; font-size: 0.8rem; color: var(--lcars-lavender); background: transparent; }
+.cm-rcast .ico { color: var(--lcars-purple); }
+
 /* Roster: one-click DM button, visible on row hover. */
 .cm-rrow .cm-rdm { margin-left: auto; opacity: 0; transition: opacity .15s; background: none; border: 1px solid var(--lcars-navy); border-radius: 10px; color: var(--lcars-lavender); font-size: 12px; padding: 0 7px; cursor: pointer; }
 .cm-rrow:hover .cm-rdm { opacity: 1; }

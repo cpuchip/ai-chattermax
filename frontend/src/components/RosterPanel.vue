@@ -5,6 +5,9 @@ import { state, actions } from '../store'
 const roster = computed(() => state.roster[state.currentRoomId] ?? [])
 const humans = computed(() => roster.value.filter((p) => p.kind === 'human'))
 const personas = computed(() => roster.value.filter((p) => p.kind === 'persona'))
+// The cast (DH-2): named characters nested under the persona that voices them.
+const castOf = (personaId: string) =>
+  (state.cast[state.currentRoomId] ?? []).filter((sp) => sp.personaId === personaId)
 
 // One-click DM from the roster. Personas must have DMs enabled by their owner.
 const dmEnabled = (personaId: string) =>
@@ -22,10 +25,15 @@ function pickMood(m: string) { actions.setMood(state.me?.mood === m ? '' : m) }
 
     <template v-if="personas.length">
       <div class="cm-rgroup">Agents — {{ personas.length }}</div>
-      <div v-for="p in personas" :key="p.id" class="cm-rrow">
-        <span class="ico">◆</span><span>{{ p.name }}</span>
-        <button v-if="dmEnabled(p.id)" class="cm-rdm" title="Message" @click="actions.openDMWithPersona(p.id)">✉</button>
-      </div>
+      <template v-for="p in personas" :key="p.id">
+        <div class="cm-rrow">
+          <span class="ico">◆</span><span>{{ p.name }}</span>
+          <button v-if="dmEnabled(p.id)" class="cm-rdm" title="Message" @click="actions.openDMWithPersona(p.id)">✉</button>
+        </div>
+        <div v-for="sp in castOf(p.id)" :key="sp.id" class="cm-rrow cm-rcast" :title="'voiced by ' + p.name">
+          <span class="ico">▹</span><span>{{ sp.displayName }}</span>
+        </div>
+      </template>
     </template>
 
     <div class="cm-rgroup">Online — {{ humans.length }}</div>

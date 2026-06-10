@@ -20,6 +20,9 @@ type clientFrame struct {
 	Op        string `json:"op,omitempty"` // add | remove
 	// Mood field (type == "mood").
 	Mood string `json:"mood,omitempty"`
+	// Cast attribution (type == "message", personas only): speak as a named
+	// cast member — auto-created on first use (DH-2).
+	SubPersona string `json:"subPersona,omitempty"`
 }
 
 // Participant is a presence/roster entry (deduped by ID across connections).
@@ -72,6 +75,12 @@ type moodFrame struct {
 	Type    string      `json:"type"` // "mood"
 	Channel string      `json:"channel"`
 	Who     Participant `json:"who"`
+}
+
+type castFrame struct {
+	Type    string             `json:"type"` // "cast"
+	Channel string             `json:"channel"`
+	Cast    []store.SubPersona `json:"cast"`
 }
 
 type reactionFrame struct {

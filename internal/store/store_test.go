@@ -214,6 +214,31 @@ func TestStoreFullFlow(t *testing.T) {
 		t.Fatalf("mood = %q after set", nu.Mood)
 	}
 
+	// cast (DH-2): auto-create on first use, case-insensitive identity,
+	// attributed message renders the cast name, roster listing, retire
+	sp, created, err := st.ResolveSubPersona(ctx, p.ID, room.ID, "Grimble")
+	if err != nil || !created || sp.DisplayName != "Grimble" {
+		t.Fatalf("resolve create: %+v created=%v err=%v", sp, created, err)
+	}
+	sp2, created2, _ := st.ResolveSubPersona(ctx, p.ID, room.ID, "grimble")
+	if created2 || sp2.ID != sp.ID {
+		t.Fatalf("case-insensitive resolve should reuse: %+v created=%v", sp2, created2)
+	}
+	cm, err := st.InsertRoomPersonaMessage(ctx, room.ID, p.ID, &sp.ID, "Best prices in the realm, friend.")
+	if err != nil || cm.SenderName != "Grimble" || cm.SenderKind != "persona" {
+		t.Fatalf("cast message resolved wrong: %+v err=%v", cm, err)
+	}
+	cast, err := st.RoomCast(ctx, room.ID)
+	if err != nil || len(cast) != 1 || cast[0].PersonaName != "Gandalf" || cast[0].DisplayName != "Grimble" {
+		t.Fatalf("room cast = %+v err=%v", cast, err)
+	}
+	if gone, _ := st.RetireSubPersona(ctx, p.ID, sp.ID); !gone {
+		t.Fatal("retire failed")
+	}
+	if cast, _ = st.RoomCast(ctx, room.ID); len(cast) != 0 {
+		t.Fatalf("cast after retire = %+v", cast)
+	}
+
 	// initiative (DH-1/D8): start, one-active guard, entries sort, advance
 	// wraps + bumps round, remove, end
 	ir, err := st.StartInitiative(ctx, room.ID, &u.ID, nil)
