@@ -45,6 +45,18 @@ func (s *Store) MembersForRoom(ctx context.Context, roomID string) ([]Member, er
 	return out, rows.Err()
 }
 
+// UserIsRoomAdmin reports whether the user is owner/admin of the room's server.
+func (s *Store) UserIsRoomAdmin(ctx context.Context, roomID, userID string) (bool, error) {
+	var ok bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM rooms r
+			JOIN server_members m ON m.server_id = r.server_id
+			WHERE r.id = $1 AND m.user_id = $2 AND m.role IN ('owner','admin')
+		)`, roomID, userID).Scan(&ok)
+	return ok, err
+}
+
 var mentionToken = regexp.MustCompile(`@([\p{L}\p{N}_.-]+)`)
 
 // MentionedUserIDs resolves the @tokens in a body against a member list. A

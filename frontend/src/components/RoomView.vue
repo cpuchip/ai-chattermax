@@ -20,6 +20,10 @@ const room = computed(() => actions.currentRoom())
 const messages = computed(() => state.messages[state.currentDMId || state.currentRoomId] ?? [])
 const placeholder = computed(() => dm.value ? `Message ${dm.value.otherName}` : `Message #${room.value?.name ?? ''}`)
 
+// Initiative strip (DH-1/D8): visible while a round runs in this room.
+const initiative = computed(() => state.initiative[state.currentRoomId])
+const currentTurnId = computed(() => initiative.value?.currentEntryId ?? '')
+
 const isMine = (id: string) => state.me && id === state.me.id
 const timeOf = (ts: string) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 const initial = (s: string) => s[0]?.toUpperCase() ?? '?'
@@ -177,6 +181,13 @@ watch(() => messages.value.length, async () => {
         <span v-if="room?.topic" class="topic">{{ room.topic }}</span>
       </template>
     </header>
+
+    <div v-if="initiative?.entries?.length" class="cm-initiative">
+      <span class="cm-init-round">⚔️ ROUND {{ initiative.round }}</span>
+      <span v-for="e in initiative.entries" :key="e.id" class="cm-init-entry" :class="{ now: e.id === currentTurnId }">
+        {{ e.name }} <b>{{ e.total }}</b>
+      </span>
+    </div>
 
     <div ref="scroller" class="cm-msgs">
       <p v-if="!messages.length" class="cm-empty">No transmissions yet. Say hello.</p>

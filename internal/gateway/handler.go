@@ -151,6 +151,12 @@ func (h *Handler) handleSubscribe(c *Client, channel string, human *store.User, 
 	// History + roster snapshot to the new subscriber, then announce to others.
 	h.sendHistory(c, channel, kind, historyOnJoin)
 	c.enqueue(marshal(presenceFrame{Type: "presence", Channel: channel, Roster: h.hub.roster(channel)}))
+	// Active initiative round (DH-1/D8) — the panel survives reloads.
+	if kind == "room" {
+		if r, ok, _ := h.store.ActiveInitiative(context.Background(), channel); ok {
+			c.enqueue(marshal(initiativeFrame{Type: "initiative", Channel: channel, Round: r}))
+		}
+	}
 	h.hub.broadcast(channel, marshal(presenceFrame{Type: "presence", Channel: channel, State: "join", Who: &c.who}), c)
 }
 
@@ -167,7 +173,7 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 	// which persists + broadcasts normally) or consumes the message.
 	transformed := false
 	if strings.HasPrefix(f.Body, "/") {
-		newBody, consumed := h.handleCommand(c, f, human)
+		newBody, consumed := h.handleCommand(c, f, kind, human, persona)
 		if consumed {
 			return
 		}
@@ -238,10 +244,12 @@ func (h *Handler) notifyMentions(roomID string, msg store.Message) {
 // handleCommand routes a slash-prefixed body. Returns the (possibly
 // transformed) body to persist, or consumed=true when the command produced no
 // room message (mood set, or an error sent back to the sender only).
-func (h *Handler) handleCommand(c *Client, f clientFrame, human *store.User) (string, bool) {
+func (h *Handler) handleCommand(c *Client, f clientFrame, kind string, human *store.User, persona *store.Persona) (string, bool) {
 	cmd, args, _ := strings.Cut(strings.TrimPrefix(f.Body, "/"), " ")
 	args = strings.TrimSpace(args)
 	switch strings.ToLower(cmd) {
+	case "initiative", "init":
+		return h.handleInitiative(c, f.Channel, kind, args, human, persona)
 	case "roll":
 		out, err := rollCommand(args)
 		if err != nil {
@@ -259,7 +267,7 @@ func (h *Handler) handleCommand(c *Client, f clientFrame, human *store.User) (st
 		h.handleMood(c, clientFrame{Mood: args}, human)
 		return "", true
 	default:
-		c.enqueue(marshal(errorFrame{Type: "error", Message: "unknown command /" + cmd + " — try /roll, /me, /mood"}))
+		c.enqueue(marshal(errorFrame{Type: "error", Message: "unknown command /" + cmd + " — try /roll, /init, /me, /mood"}))
 		return "", true
 	}
 }

@@ -1,7 +1,7 @@
 // The app store: a reactive singleton wiring the REST api + the gateway client
 // into view state. Components read `state` and call `actions`.
 import { reactive } from 'vue'
-import { api, type Command, type User, type Server, type Room, type Persona, type Message, type Notification, type Participant, type RegistryMember, type DMSummary } from './api'
+import { api, type Command, type InitiativeRound, type User, type Server, type Room, type Persona, type Message, type Notification, type Participant, type RegistryMember, type DMSummary } from './api'
 import { Gateway } from './gateway'
 
 interface State {
@@ -23,6 +23,7 @@ interface State {
   typing: Record<string, Record<string, number>> // channel → who → expiry ms
   notifications: Notification[]
   commands: Command[]
+  initiative: Record<string, InitiativeRound | undefined> // channel → active round
   error: string
   ui: { drawer: boolean; rosterOpen: boolean; view: 'chat' | 'settings' | 'alerts' }
 }
@@ -46,6 +47,7 @@ export const state = reactive<State>({
   typing: {},
   notifications: [],
   commands: [],
+  initiative: {},
   error: '',
   ui: { drawer: false, rosterOpen: false, view: 'chat' },
 })
@@ -74,6 +76,10 @@ function ensureGateway() {
       if (op === 'remove' && i !== -1) rs.splice(i, 1)
     },
     onNotification: (n) => { state.notifications.unshift(n) },
+    onInitiative: (ch, round) => {
+      if (round.active) state.initiative[ch] = round
+      else delete state.initiative[ch]
+    },
     onMood: (ch, who) => {
       const p = state.roster[ch]?.find((x) => x.id === who.id)
       if (p) p.mood = who.mood

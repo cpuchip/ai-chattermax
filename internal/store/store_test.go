@@ -213,6 +213,43 @@ func TestStoreFullFlow(t *testing.T) {
 	if nu, _ := st.GetUserByID(ctx, u.ID); nu.Mood != "😎" {
 		t.Fatalf("mood = %q after set", nu.Mood)
 	}
+
+	// initiative (DH-1/D8): start, one-active guard, entries sort, advance
+	// wraps + bumps round, remove, end
+	ir, err := st.StartInitiative(ctx, room.ID, &u.ID, nil)
+	if err != nil {
+		t.Fatalf("start initiative: %v", err)
+	}
+	if _, err := st.StartInitiative(ctx, room.ID, &u.ID, nil); err == nil {
+		t.Fatal("second active round must be rejected")
+	}
+	_ = st.UpsertInitiativeEntry(ctx, ir.ID, "Grimble", 2, 16, 18)
+	_ = st.UpsertInitiativeEntry(ctx, ir.ID, "Vex", 3, 11, 14)
+	_ = st.UpsertInitiativeEntry(ctx, ir.ID, "Goblin", 0, 9, 9)
+	ar, ok, _ := st.ActiveInitiative(ctx, room.ID)
+	if !ok || len(ar.Entries) != 3 || ar.Entries[0].Name != "Grimble" || ar.Entries[2].Name != "Goblin" {
+		t.Fatalf("entries sort wrong: %+v", ar.Entries)
+	}
+	ar, err = st.AdvanceInitiative(ctx, room.ID)
+	if err != nil || ar.CurrentEntryID != ar.Entries[0].ID || ar.Round != 1 {
+		t.Fatalf("first advance: %+v err=%v", ar, err)
+	}
+	st.AdvanceInitiative(ctx, room.ID)
+	st.AdvanceInitiative(ctx, room.ID)
+	ar, _ = st.AdvanceInitiative(ctx, room.ID) // wraps to Grimble
+	if ar.Round != 2 || ar.CurrentEntryID != ar.Entries[0].ID {
+		t.Fatalf("wrap should bump round: round=%d", ar.Round)
+	}
+	if gone, _ := st.RemoveInitiativeEntry(ctx, ar.ID, "goblin"); !gone {
+		t.Fatal("case-insensitive remove failed")
+	}
+	er, err := st.EndInitiative(ctx, room.ID)
+	if err != nil || er.Active {
+		t.Fatalf("end: %+v err=%v", er, err)
+	}
+	if _, ok, _ := st.ActiveInitiative(ctx, room.ID); ok {
+		t.Fatal("round should be inactive after end")
+	}
 }
 
 func TestMentionedUserIDs(t *testing.T) {

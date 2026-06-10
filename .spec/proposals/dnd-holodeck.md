@@ -181,6 +181,37 @@ cross-compiled into the substrate bridge like strongs was.
 - D&D Beyond import: deferred indefinitely (no API); design the character
   model so a user-supplied JSON export could map in later.
 
+## Track D8 — initiative & turn order (Michael, 2026-06-10, post-Phase-1)
+
+The table's heartbeat: the DM calls for initiative, everyone rolls, a turn-order
+panel shows whose turn it is, and the DM advances it.
+
+**Commands** (the registry makes these appear in autocomplete automatically):
+- `/initiative start` — opens a round in this room; the panel appears.
+- `/init +3` or `/init -1` — join with your modifier; the server rolls d20+mod
+  (same fairness story as `/roll`) and slots you. `/init add Grimble +2` lets
+  the DM enter cast members / NPCs (and later, sheet-linked PCs by name).
+- `/init next` — advance the turn marker (wraps; bumps the round counter).
+- `/init remove Grimble`, `/init end`.
+- Each action also posts a compact room message (the log of record:
+  "⚔️ Initiative: Grimble 18, Vex 14, Goblin 9 — round 1, Grimble's turn"), so
+  history reads like a table even without the panel.
+
+**State:** a chattermax table (`initiative_rounds` + entries, one active round
+per room) — initiative is a *table* mechanic, room-scoped, independent of
+character sheets. Phase 3 tie-in: `/init` with no modifier pulls DEX from the
+dnd-tools sheet bound to your name. Broadcast via a new `initiative` WS frame
+on every change; REST backfill on join so reloads keep the panel.
+
+**Panel:** a compact sticky strip above the transcript while a round is active —
+ordered names with rolls, the current turn highlighted, round counter. Click
+nothing; it's a display. (It's the first instance of "room state with a UI" —
+the pattern D7's program-status panel can reuse.)
+
+**Control:** the round's starter + server owner/admins + personas can run
+`/init` mutations (the DM persona IS the DM; humans fix anything as admins).
+Everyone can `/init <mod>` themselves while a round is open.
+
 ## Track D7 — the holodeck program flow (Michael's vision, assembled)
 
 With D1–D6, the flow is composition, not new architecture:

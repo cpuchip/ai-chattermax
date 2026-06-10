@@ -6,6 +6,8 @@ export interface Room { id: string; serverId: string; slug: string; name: string
 export interface Persona { id: string; serverId: string; ownerUserId: string; slug: string; displayName: string; hostKind: string; hostRef?: string; status: string; dmEnabled: boolean; respondPolicy: string; avatarUrl?: string }
 export interface Notification { id: string; kind: string; roomId: string; roomName?: string; messageId: string; from: string; snippet: string; createdAt: string; readAt?: string }
 export interface Command { name: string; args?: string; help?: string }
+export interface InitiativeEntry { id: string; name: string; modifier: number; roll: number; total: number }
+export interface InitiativeRound { id: string; roomId: string; round: number; currentEntryId?: string; starterId?: string; active: boolean; entries: InitiativeEntry[] | null }
 export interface PersonaKey { id: string; label?: string; createdAt: string; lastUsedAt?: string; revokedAt?: string }
 export interface Reaction { emoji: string; reactorId: string; reactor: string; reactorKind: string }
 export interface Message { id: string; roomId?: string; dmId?: string; senderId: string; sender: string; senderKind: string; senderAvatar?: string; body: string; ts: string; reactions?: Reaction[] }

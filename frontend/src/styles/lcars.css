@@ -211,6 +211,14 @@ input, textarea { font-family: inherit; }
 
 .cm-composer { display: flex; gap: 8px; padding: 12px 16px; border-top: 2px solid var(--lcars-lavender); position: relative; }
 
+/* Initiative strip (DH-1/D8): the turn order, pinned above the transcript. */
+.cm-initiative { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 16px; border-bottom: 2px solid var(--lcars-orange); background: rgba(255,153,0,.06); }
+.cm-init-round { font-family: var(--font-lcars); font-size: 0.85rem; letter-spacing: 1px; color: var(--lcars-orange); white-space: nowrap; }
+.cm-init-entry { font-size: 13px; color: var(--lcars-read); padding: 1px 9px; border-radius: 10px; border: 1px solid var(--lcars-navy); white-space: nowrap; }
+.cm-init-entry b { color: var(--lcars-lavender); font-weight: 600; }
+.cm-init-entry.now { border-color: var(--lcars-orange); background: rgba(255,153,0,.18); color: var(--lcars-gold); }
+.cm-init-entry.now b { color: var(--lcars-gold); }
+
 /* Composer autocomplete (DH-1): commands on "/", mentions on "@". */
 .cm-ac { position: absolute; bottom: 100%; left: 16px; right: 16px; max-width: 480px; margin-bottom: 4px; background: #000; border: 1px solid var(--lcars-lavender); border-radius: 12px; overflow: hidden; box-shadow: 0 -4px 14px rgba(0,0,0,.5); z-index: 40; }
 .cm-ac-item { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; padding: 7px 12px; background: none; border: none; color: var(--lcars-read); cursor: pointer; font: inherit; }

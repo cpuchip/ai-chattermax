@@ -1,6 +1,6 @@
 // Gateway client: one multiplexed WebSocket to /gateway. Reconnects with backoff
 // and re-subscribes to the channels it had open.
-import type { Message, Notification, Participant } from './api'
+import type { InitiativeRound, Message, Notification, Participant } from './api'
 
 export interface GatewayHandlers {
   onReady?: (who: Participant) => void
@@ -12,6 +12,7 @@ export interface GatewayHandlers {
   onReaction?: (channel: string, messageId: string, emoji: string, op: string, who: Participant) => void
   onNotification?: (n: Notification) => void
   onMood?: (channel: string, who: Participant) => void
+  onInitiative?: (channel: string, round: InitiativeRound) => void
   onStatus?: (connected: boolean) => void
 }
 
@@ -86,6 +87,7 @@ export class Gateway {
       case 'reaction': this.handlers.onReaction?.(f.channel, f.messageId, f.emoji, f.op, f.who); break
       case 'notification': if (f.notification) this.handlers.onNotification?.(f.notification); break
       case 'mood': if (f.who) this.handlers.onMood?.(f.channel, f.who); break
+      case 'initiative': if (f.round) this.handlers.onInitiative?.(f.channel, f.round); break
     }
   }
 }
