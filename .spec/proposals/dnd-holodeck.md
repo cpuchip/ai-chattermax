@@ -286,6 +286,21 @@ With D1–D6, the flow is composition, not new architecture:
   buttons for the round's starter + server owner/admins — they send the same
   /init commands the server gates, so the log of record is identical either way.
 
+- **✅ DH-2 CAST SHIPPED + PROVEN LIVE (2026-06-10 evening, chattermax
+  `0e2f0b4` + r20 + host):** 0006 loosened the one-alias UNIQUE; cast members
+  **auto-create on first use** ("Grimble exists because the DM spoke as him",
+  cap 50/room, case-insensitive identity); persona message frames carry
+  `subPersona`; `room_say(as_character)` (r20, live+ledgered) → host drainer
+  passthrough; roster nests the cast under its voicing persona; `cast` frame +
+  subscribe backfill. **Live proof — one DM turn, three voices in ~15s:**
+  Grimble the shopkeep and Vex the guard captain each spoke attributed lines,
+  then DM-voice narration. dm-assistant + npc-ally wired as platform personas
+  (names matched to host identities — the Codewright lesson), policy
+  `mentioned`, granted into Holodeck-3.
+  **Remaining in DH-2:** the Party persona (waits on dnd-tools sheets — same
+  cast machinery) and promotion-to-own-session for major NPCs (build when a
+  campaign needs a villain with real private memory).
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
