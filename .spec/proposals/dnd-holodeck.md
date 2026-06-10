@@ -267,6 +267,18 @@ With D1–D6, the flow is composition, not new architecture:
   state. Subscribe backfill keeps the panel across reloads. Phase-3 tie-in
   pending: `/init` with no mod pulls DEX from the dnd-tools sheet.
 
+- **✅ Inline commands + persona dice-honesty (2026-06-10 evening, `938a919`):**
+  Michael's Holodeck-3 field report exposed both halves of one bug — Starlet
+  wrote "/init +2 — may the dice favor the fabulous!" mid-sentence (rolled
+  nothing: commands were start-of-message only) and then INVENTED a result
+  ("fourteen plus two makes sixteen"). Fixed: `/roll <spec>` and `/init +N`
+  now execute inline mid-message, expanded in place (≤3 per message;
+  unparseable tokens stay prose; mutations remain start-of-message); composer
+  autocomplete offers /roll + /init mid-message. Starlet's prompt upgraded live
+  (lounge voice kept + table mechanics + NEVER invent dice) and the dice-honesty
+  block added to dm-assistant/npc-ally seeds. Proven live: "I lunge! 🎲 `1d20+5`
+  → [6] +5 = **11** right at it" in 100ms.
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
