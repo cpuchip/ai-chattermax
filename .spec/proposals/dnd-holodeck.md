@@ -301,6 +301,24 @@ With D1–D6, the flow is composition, not new architecture:
   cast machinery) and promotion-to-own-session for major NPCs (build when a
   campaign needs a villain with real private memory).
 
+- **✅ Cast field-report fixes (2026-06-10 night, `dc0e088` + host):** Michael's
+  first table session surfaced four things, all closed same-night —
+  (1) **room-unique cast names** (0007 dedupes, oldest claim owns the name —
+  the DM and Starlet had dueling Grimbles); (2) **cast-name addressing**:
+  "Grimble, how much?" wakes the persona who VOICES Grimble (host parses cast
+  frames, matches full names + first names with a stop-word guard; own cast
+  lines never self-trigger) + cast members in the @ autocomplete; (3) consult
+  framing gained "never repeat yourself" (Starlet's verbatim repeats);
+  (4) **Starlet swapped out for Party** (Michael's call) — host persona
+  `party` runs PCs as cast, policy `judgment`, Holodeck-3. **Proven live:**
+  first-name ask → DM's 👀 at 0.1s → "Grimble the shopkeep: 😏 Six coppers?
+  You're a scholar and a saint" at 11.4s; Party eyed and correctly stayed
+  silent. Watch item: one Fireworks stream truncated mid-turn (reasoning
+  arrived, content/finish_reason null, 4m47s) — the host posted nothing,
+  fault-tolerantly; consider substrate retry-on-empty-stream later. Typing
+  stays persona-level by design (the host can't know which cast member speaks
+  before the line lands).
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
