@@ -143,6 +143,46 @@ Michael flips them.
 
 Each PR independently shippable; nothing touches the substrate dispatch engine.
 
+## Build progress
+
+- **✅ Track R SHIPPED + PROVEN ON PROD (2026-06-10, `dcf1d1f`):** store test
+  against live Postgres (add / idempotent re-add / persona reaction / backfill /
+  remove / channel guard) + live e2e on chat.ibeco.me — add broadcast echoed in
+  100ms with resolved reactor, REST backfill showed the reaction while it
+  existed, remove cleared it. Roster DM buttons rode along.
+- **✅ Track E SHIPPED + PROVEN LIVE (2026-06-10, persona-host):** race-clean
+  unit test (add → remove → hop on coalesced follow-up) + live: 👀 at 0.1s on
+  the asked message, beat at 9s, cited answer at 48s, 👀 off right after. Eyes
+  also come off on turn error (proven against a real Fireworks 503) and on
+  SILENCE.
+- **⏳ Track M:** not started (next PR).
+
+### Found-and-fixed during E's live verification — the SILENCE day
+
+Chattercode answered SILENCE to every direct question (4 in a row, fresh
+sessions included). Root cause, read straight from kimi's reasoning_content:
+**the identity split** — the host/prompt names the character "Codewright" while
+the platform shows "Chattercode", so the model concluded *"But I am Codewright,
+not Chattercode. The message is directed at…"* someone else. Two fixes shipped:
+
+1. `isAddressed` now matches the plain slug and the **platform display name**
+   (captured from the gateway `ready` frame) — with or without `@`.
+2. `buildTurnZeroFraming` emits an **identity bridge** when the platform name
+   differs from the character name: "In this room you appear under the name
+   'Chattercode' — messages addressed to 'Chattercode' are addressed to YOU,
+   and lines from 'Chattercode' below are your own earlier messages."
+
+Both regression-tested (`TestIsAddressed`, `TestBuildTurnZeroFraming_PlatformNameBridge`).
+Also fixed: drainer no longer double-prefixes the mood emoji when the model
+already led with it ("🔍 🔍 …").
+
+Residual watch: SILENCE answers accumulate as assistant turns in long-lived
+sessions and may bias later consults toward silence (observed once the identity
+bug primed it). If a persona goes quiet again with addressing now correct,
+consider scrubbing SILENCE rows from the session or rotating the session.
+Naming hygiene (Michael's call): aligning the host persona's display_name with
+the platform name removes the split entirely.
+
 ## Watch item (not part of this spec)
 
 **Coalesced-follow-up duplicate answers:** in the 2026-06-09 Engineering history,
