@@ -209,7 +209,15 @@ input, textarea { font-family: inherit; }
 .cm-typing-dots i:nth-child(3) { animation-delay: .4s; }
 @keyframes cm-typing-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 
-.cm-composer { display: flex; gap: 8px; padding: 12px 16px; border-top: 2px solid var(--lcars-lavender); }
+.cm-composer { display: flex; gap: 8px; padding: 12px 16px; border-top: 2px solid var(--lcars-lavender); position: relative; }
+
+/* Composer autocomplete (DH-1): commands on "/", mentions on "@". */
+.cm-ac { position: absolute; bottom: 100%; left: 16px; right: 16px; max-width: 480px; margin-bottom: 4px; background: #000; border: 1px solid var(--lcars-lavender); border-radius: 12px; overflow: hidden; box-shadow: 0 -4px 14px rgba(0,0,0,.5); z-index: 40; }
+.cm-ac-item { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; padding: 7px 12px; background: none; border: none; color: var(--lcars-read); cursor: pointer; font: inherit; }
+.cm-ac-item.sel, .cm-ac-item:hover { background: var(--lcars-panel-2); }
+.cm-ac-item .l { font-family: var(--font-lcars); color: var(--lcars-gold); white-space: nowrap; }
+.cm-ac-item .hint { font-size: 12px; color: var(--lcars-lavender); white-space: nowrap; }
+.cm-ac-item .help { font-size: 12px; color: var(--lcars-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-input { flex: 1; background: #000; color: var(--lcars-read); border: 1px solid var(--lcars-navy); border-radius: 16px; padding: 10px 16px; outline: none; resize: none; font: inherit; line-height: 1.4; max-height: 8rem; overflow-y: auto; }
 .cm-input:focus { border-color: var(--lcars-orange); }
 .cm-send { background: var(--lcars-orange); color: var(--lcars-text-dark); font-family: var(--font-lcars); text-transform: uppercase; letter-spacing: 1px; padding: 0 22px; border-radius: 16px; }

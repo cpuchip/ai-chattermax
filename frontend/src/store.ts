@@ -1,7 +1,7 @@
 // The app store: a reactive singleton wiring the REST api + the gateway client
 // into view state. Components read `state` and call `actions`.
 import { reactive } from 'vue'
-import { api, type User, type Server, type Room, type Persona, type Message, type Notification, type Participant, type RegistryMember, type DMSummary } from './api'
+import { api, type Command, type User, type Server, type Room, type Persona, type Message, type Notification, type Participant, type RegistryMember, type DMSummary } from './api'
 import { Gateway } from './gateway'
 
 interface State {
@@ -22,6 +22,7 @@ interface State {
   roster: Record<string, Participant[]>
   typing: Record<string, Record<string, number>> // channel → who → expiry ms
   notifications: Notification[]
+  commands: Command[]
   error: string
   ui: { drawer: boolean; rosterOpen: boolean; view: 'chat' | 'settings' | 'alerts' }
 }
@@ -44,6 +45,7 @@ export const state = reactive<State>({
   roster: {},
   typing: {},
   notifications: [],
+  commands: [],
   error: '',
   ui: { drawer: false, rosterOpen: false, view: 'chat' },
 })
@@ -125,6 +127,7 @@ export const actions = {
     ensureGateway()
     state.servers = await api.servers()
     try { state.notifications = await api.notifications() } catch { state.notifications = [] }
+    try { state.commands = await api.commands() } catch { state.commands = [] }
     // Invite link: chat.ibeco.me/?join=<token> auto-joins that server.
     const joinTok = new URLSearchParams(location.search).get('join')
     if (joinTok) {

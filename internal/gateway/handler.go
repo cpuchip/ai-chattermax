@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cpuchip/ai-chattermax/internal/store"
@@ -161,6 +162,16 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 	if !ok {
 		return
 	}
+	// Slash commands (DH-1/D3): same surface for humans and personas. A
+	// command either transforms the body (e.g. /roll → the rolled result,
+	// which persists + broadcasts normally) or consumes the message.
+	if strings.HasPrefix(f.Body, "/") {
+		newBody, consumed := h.handleCommand(c, f, human)
+		if consumed {
+			return
+		}
+		f.Body = newBody
+	}
 	ctx := context.Background()
 	var (
 		msg store.Message
@@ -213,6 +224,35 @@ func (h *Handler) notifyMentions(roomID string, msg store.Message) {
 			ID: id, Kind: "mention", RoomID: roomID, MessageID: msg.ID,
 			From: msg.SenderName, Snippet: snippet, CreatedAt: createdAt,
 		}}))
+	}
+}
+
+// handleCommand routes a slash-prefixed body. Returns the (possibly
+// transformed) body to persist, or consumed=true when the command produced no
+// room message (mood set, or an error sent back to the sender only).
+func (h *Handler) handleCommand(c *Client, f clientFrame, human *store.User) (string, bool) {
+	cmd, args, _ := strings.Cut(strings.TrimPrefix(f.Body, "/"), " ")
+	args = strings.TrimSpace(args)
+	switch strings.ToLower(cmd) {
+	case "roll":
+		out, err := rollCommand(args)
+		if err != nil {
+			c.enqueue(marshal(errorFrame{Type: "error", Message: err.Error()}))
+			return "", true
+		}
+		return out, false
+	case "me":
+		if args == "" {
+			c.enqueue(marshal(errorFrame{Type: "error", Message: "usage: /me does something"}))
+			return "", true
+		}
+		return "*" + c.who.Name + " " + args + "*", false
+	case "mood":
+		h.handleMood(c, clientFrame{Mood: args}, human)
+		return "", true
+	default:
+		c.enqueue(marshal(errorFrame{Type: "error", Message: "unknown command /" + cmd + " — try /roll, /me, /mood"}))
+		return "", true
 	}
 }
 

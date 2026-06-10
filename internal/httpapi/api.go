@@ -47,6 +47,7 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/personas/{id}/grants/{roomId}", a.revokePersonaGrant)
 	mux.HandleFunc("GET /api/rooms/{id}/messages", a.roomMessages)
 	mux.HandleFunc("GET /api/rooms/{id}/search", a.roomSearch)
+	mux.HandleFunc("GET /api/commands", a.listCommands)
 	mux.HandleFunc("GET /api/notifications", a.listNotifications)
 	mux.HandleFunc("POST /api/notifications/read", a.readNotifications)
 	mux.HandleFunc("GET /api/dms", a.listMyDMs)
@@ -77,6 +78,17 @@ func (a *API) PersonaRoomsHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"persona": map[string]string{"slug": p.Slug, "displayName": p.DisplayName, "respondPolicy": p.RespondPolicy},
 		"rooms":   orEmpty(rooms),
+	})
+}
+
+// listCommands returns the slash-command registry — the composer autocomplete
+// is data-driven from this, so new commands (e.g. dnd-tools' /char) appear
+// without frontend changes.
+func (a *API) listCommands(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, []map[string]string{
+		{"name": "roll", "args": "2d6+3 | d20 adv|dis", "help": "Roll dice — the server rolls, in the open"},
+		{"name": "me", "args": "does something", "help": "Emote as yourself, in italics"},
+		{"name": "mood", "args": "😎 (empty clears)", "help": "Set your roster mood"},
 	})
 }
 
