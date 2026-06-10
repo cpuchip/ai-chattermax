@@ -203,6 +203,31 @@ With D1–D6, the flow is composition, not new architecture:
    Multi-part play = archive/resume; concurrent campaigns = more holodeck
    rooms (already isolated per-channel).
 
+## Build progress
+
+- **✅ Phase 1 SHIPPED + PROVEN LIVE (2026-06-10, same day as ratification):**
+  - **D2/D3 (chattermax `39a4208` + `d2a1df3`, deployed):** server-side `/roll`
+    for every sender (crypto/rand; NdM±K, d%, adv/dis; parser unit-tested),
+    `/me`, `/mood`; `GET /api/commands` registry; composer autocomplete (one
+    popup: `/` commands at start, `@` mentions anywhere — finishes REM-3's
+    usability); command results echo to the sender (no optimistic raw `/roll`,
+    caught in verification before live). Live: `/roll 2d6+3` → `[3, 5] +3 =
+    **11**` echoed to the roller; `/roll banana` errored to sender only.
+  - **D1 (persona-host, root `…`, unpushed):** persona→persona triggers gated
+    on isAddressed + never-self + hop budget 3 (human resets); race-clean
+    tests. **Proven live in 10-forward:** human → "chattercode, ask @Computer
+    what the Topical Guide is" → Chattercode posts "@Computer — what's the
+    Topical Guide?" → Computer's turn fires off the PERSONA message (hop 1),
+    runs gospel_search, posts the cited answer. The DM→PC handoff loop works.
+  - Eyes made persona economics visible: every persona in a room with policy
+    `all` eyed the same message (three 👀 on one question, two SILENCEs) — the
+    argument for `mentioned`/`judgment` policies in multi-persona rooms,
+    observed live.
+  - Known limits noted: hop budget is per-persona-per-channel (a 2-persona
+    chain can spend 3+3 before quieting — acceptable v1); coalesced consult
+    after an already-answered turn-zero may re-answer (watch item, same family
+    as the SILENCE-row accumulation).
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
