@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -250,8 +251,29 @@ func (h *Handler) notifyMentions(roomID string, msg store.Message) {
 // handleCommand routes a slash-prefixed body. Returns the (possibly
 // transformed) body to persist, or consumed=true when the command produced no
 // room message (mood set, or an error sent back to the sender only).
+// commentRe captures an optional trailing [comment] on any command — flavor
+// text rendered with the result: /roll 1d20+5 [swinging at the goblin].
+var commentRe = regexp.MustCompile(`\s*\[([^\[\]]{1,200})\]\s*$`)
+
+func splitComment(args string) (string, string) {
+	if m := commentRe.FindStringSubmatch(args); m != nil {
+		return strings.TrimSpace(strings.TrimSuffix(args, m[0])), strings.TrimSpace(m[1])
+	}
+	return args, ""
+}
+
 func (h *Handler) handleCommand(c *Client, f clientFrame, kind string, human *store.User, persona *store.Persona) (string, bool) {
-	cmd, args, _ := strings.Cut(strings.TrimPrefix(f.Body, "/"), " ")
+	args0 := strings.TrimPrefix(f.Body, "/")
+	args0, comment := splitComment(args0)
+	body, consumed := h.runCommand(c, f, kind, args0, human, persona)
+	if !consumed && comment != "" {
+		body += " — *" + comment + "*"
+	}
+	return body, consumed
+}
+
+func (h *Handler) runCommand(c *Client, f clientFrame, kind, trimmed string, human *store.User, persona *store.Persona) (string, bool) {
+	cmd, args, _ := strings.Cut(trimmed, " ")
 	args = strings.TrimSpace(args)
 	switch strings.ToLower(cmd) {
 	case "initiative", "init":

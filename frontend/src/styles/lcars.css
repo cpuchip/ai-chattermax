@@ -218,6 +218,11 @@ input, textarea { font-family: inherit; }
 .cm-init-entry b { color: var(--lcars-lavender); font-weight: 600; }
 .cm-init-entry.now { border-color: var(--lcars-orange); background: rgba(255,153,0,.18); color: var(--lcars-gold); }
 .cm-init-entry.now b { color: var(--lcars-gold); }
+.cm-init-ctl { margin-left: auto; display: inline-flex; gap: 4px; }
+.cm-init-btn { background: var(--lcars-orange); color: var(--lcars-text-dark); font-family: var(--font-lcars); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; padding: 2px 12px; border-radius: 10px; border: none; cursor: pointer; }
+.cm-init-btn:hover { background: var(--lcars-gold); }
+.cm-init-btn.danger { background: var(--lcars-panel-2); color: var(--lcars-lavender); border: 1px solid var(--lcars-navy); }
+.cm-init-btn.danger:hover { border-color: var(--lcars-orange); color: var(--lcars-orange); }
 
 /* Composer autocomplete (DH-1): commands on "/", mentions on "@". */
 .cm-ac { position: absolute; bottom: 100%; left: 16px; right: 16px; max-width: 480px; margin-bottom: 4px; background: #000; border: 1px solid var(--lcars-lavender); border-radius: 12px; overflow: hidden; box-shadow: 0 -4px 14px rgba(0,0,0,.5); z-index: 40; }

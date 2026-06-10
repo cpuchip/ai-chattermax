@@ -66,6 +66,29 @@ func TestRollCommand_RangeAndShape(t *testing.T) {
 	}
 }
 
+func TestSplitComment(t *testing.T) {
+	for _, c := range []struct{ in, args, comment string }{
+		{"roll 1d20+5 [swinging at the goblin]", "roll 1d20+5", "swinging at the goblin"},
+		{"init next [the goblin snarls]", "init next", "the goblin snarls"},
+		{"roll 2d6", "roll 2d6", ""},
+		{"roll [just brackets]", "roll", "just brackets"},
+	} {
+		args, comment := splitComment(c.in)
+		if args != c.args || comment != c.comment {
+			t.Errorf("splitComment(%q) = %q, %q; want %q, %q", c.in, args, comment, c.args, c.comment)
+		}
+	}
+}
+
+func TestHandleCommand_RollWithComment(t *testing.T) {
+	h := &Handler{}
+	c := &Client{send: make(chan []byte, 4)}
+	body, consumed := h.handleCommand(c, clientFrame{Body: "/roll 2d6+1 [smashing the door]"}, "room", nil, nil)
+	if consumed || !strings.Contains(body, "🎲") || !strings.Contains(body, "— *smashing the door*") {
+		t.Fatalf("comment not rendered: %q consumed=%v", body, consumed)
+	}
+}
+
 func TestExpandInline_Roll(t *testing.T) {
 	h := &Handler{} // /roll expansion touches no store; kind "dm" skips /init
 	out, changed := h.expandInline(t.Context(), nil, "ch", "dm", "I lunge at the goblin! /roll 1d20+5 — take that")
@@ -86,5 +109,10 @@ func TestExpandInline_Roll(t *testing.T) {
 	out, changed = h.expandInline(t.Context(), nil, "ch", "dm", "I /roll 1d20 advance carefully")
 	if !changed || !strings.Contains(out, "advance carefully") || strings.Contains(out, "keep high") {
 		t.Fatalf("adv must not eat prose: %q", out)
+	}
+	// Inline [comment] renders as flavor.
+	out, changed = h.expandInline(t.Context(), nil, "ch", "dm", "attack! /roll 1d20+2 [with fury] onward")
+	if !changed || !strings.Contains(out, "— *with fury*") || !strings.Contains(out, "onward") {
+		t.Fatalf("inline comment not rendered: %q", out)
 	}
 }

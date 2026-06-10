@@ -23,6 +23,17 @@ const placeholder = computed(() => dm.value ? `Message ${dm.value.otherName}` : 
 // Initiative strip (DH-1/D8): visible while a round runs in this room.
 const initiative = computed(() => state.initiative[state.currentRoomId])
 const currentTurnId = computed(() => initiative.value?.currentEntryId ?? '')
+// The round's starter and server owner/admins get clickable controls — the
+// buttons just send the same /init commands the server already gates.
+const canRunInit = computed(() => {
+  const r = initiative.value
+  if (!r || !state.me) return false
+  if (r.starterId === state.me.id) return true
+  const me = state.registry.find((m) => m.userId === state.me!.id)
+  return me?.role === 'owner' || me?.role === 'admin'
+})
+function initNext() { actions.send('/init next') }
+function initEnd() { if (confirm('End this initiative round?')) actions.send('/init end') }
 
 const isMine = (id: string) => state.me && id === state.me.id
 const timeOf = (ts: string) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -194,6 +205,10 @@ watch(() => messages.value.length, async () => {
       <span class="cm-init-round">⚔️ ROUND {{ initiative.round }}</span>
       <span v-for="e in initiative.entries" :key="e.id" class="cm-init-entry" :class="{ now: e.id === currentTurnId }">
         {{ e.name }} <b>{{ e.total }}</b>
+      </span>
+      <span v-if="canRunInit" class="cm-init-ctl">
+        <button class="cm-init-btn" title="Next turn (/init next)" @click="initNext">Next ▸</button>
+        <button class="cm-init-btn danger" title="End initiative (/init end)" @click="initEnd">✕</button>
       </span>
     </div>
 

@@ -19,9 +19,18 @@ import (
 // commands were start-of-message only. Mutating commands (start/next/end/
 // add/remove) stay start-of-message — they're deliberate actions, not prose.
 var (
-	inlineRollRe = regexp.MustCompile(`(?i)/roll\s+(\d*d(?:\d+|%)(?:\s*[+-]\s*\d+)?(?:\s+(?:adv|dis)\b)?)`)
-	inlineInitRe = regexp.MustCompile(`(?i)/init\s+([+-]\d+)\b`)
+	inlineRollRe = regexp.MustCompile(`(?i)/roll\s+(\d*d(?:\d+|%)(?:\s*[+-]\s*\d+)?(?:\s+(?:adv|dis)\b)?)(\s*\[[^\[\]]{1,200}\])?`)
+	inlineInitRe = regexp.MustCompile(`(?i)/init\s+([+-]\d+)\b(\s*\[[^\[\]]{1,200}\])?`)
 )
+
+// inlineComment renders a captured "[flavor]" group as " — *flavor*".
+func inlineComment(raw string) string {
+	c := strings.TrimSpace(raw)
+	if c == "" {
+		return ""
+	}
+	return " — *" + strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(c, "["), "]")) + "*"
+}
 
 const maxInlinePerMessage = 3
 
@@ -35,15 +44,15 @@ func (h *Handler) expandInline(ctx context.Context, c *Client, channel, kind, bo
 		if count >= maxInlinePerMessage {
 			return tok
 		}
-		spec := inlineRollRe.FindStringSubmatch(tok)[1]
-		out, err := rollCommand(spec)
+		m := inlineRollRe.FindStringSubmatch(tok)
+		out, err := rollCommand(m[1])
 		if err != nil {
 			return tok
 		}
 		count++
 		changed = true
 		// Compact inline form: drop the "rolled" word from the block form.
-		return strings.Replace(out, "🎲 rolled ", "🎲 ", 1)
+		return strings.Replace(out, "🎲 rolled ", "🎲 ", 1) + inlineComment(m[2])
 	})
 
 	if kind == "room" {
@@ -55,7 +64,8 @@ func (h *Handler) expandInline(ctx context.Context, c *Client, channel, kind, bo
 			if err != nil || !ok {
 				return tok // no round running — leave the prose alone
 			}
-			mod, _ := strconv.Atoi(inlineInitRe.FindStringSubmatch(tok)[1])
+			m := inlineInitRe.FindStringSubmatch(tok)
+			mod, _ := strconv.Atoi(m[1])
 			roll := rollDie(20)
 			total := roll + mod
 			if err := h.store.UpsertInitiativeEntry(ctx, r.ID, c.who.Name, mod, roll, total); err != nil {
@@ -64,7 +74,7 @@ func (h *Handler) expandInline(ctx context.Context, c *Client, channel, kind, bo
 			h.broadcastInitiative(ctx, channel)
 			count++
 			changed = true
-			return fmt.Sprintf("⚔️ initiative [%d] %+d = **%d**", roll, mod, total)
+			return fmt.Sprintf("⚔️ initiative [%d] %+d = **%d**", roll, mod, total) + inlineComment(m[2])
 		})
 	}
 	return body, changed
