@@ -257,11 +257,15 @@ export const actions = {
   send(body: string) {
     const ch = state.currentDMId || state.currentRoomId
     if (!ch || !body.trim() || !state.me) return
-    // optimistic — the server broadcasts to everyone except us.
-    ;(state.messages[ch] ||= []).push({
-      id: 'local-' + Date.now(), senderId: state.me.id,
-      sender: state.me.displayName, senderKind: 'human', body, ts: new Date().toISOString(),
-    })
+    // optimistic — the server broadcasts to everyone except us. Slash commands
+    // are the exception: the server transforms them (/roll → the result) and
+    // echoes the authoritative message back to us, so no optimistic copy.
+    if (!body.startsWith('/')) {
+      ;(state.messages[ch] ||= []).push({
+        id: 'local-' + Date.now(), senderId: state.me.id,
+        sender: state.me.displayName, senderKind: 'human', body, ts: new Date().toISOString(),
+      })
+    }
     gateway?.send(ch, body)
   },
 

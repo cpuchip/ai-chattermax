@@ -165,12 +165,14 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 	// Slash commands (DH-1/D3): same surface for humans and personas. A
 	// command either transforms the body (e.g. /roll → the rolled result,
 	// which persists + broadcasts normally) or consumes the message.
+	transformed := false
 	if strings.HasPrefix(f.Body, "/") {
 		newBody, consumed := h.handleCommand(c, f, human)
 		if consumed {
 			return
 		}
 		f.Body = newBody
+		transformed = true
 	}
 	ctx := context.Background()
 	var (
@@ -193,8 +195,14 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 		return
 	}
 	// Broadcast to everyone in the channel except the sender (the sender's UI
-	// shows its own message optimistically — AX3-2 carried forward).
-	h.hub.broadcast(f.Channel, marshal(messageFrame{Type: "message", Channel: f.Channel, Message: msg}), c)
+	// shows its own message optimistically — AX3-2 carried forward). Command
+	// results are the exception: the sender skipped optimistic rendering (the
+	// raw "/roll …" isn't the message) and needs the authoritative result too.
+	except := c
+	if transformed {
+		except = nil
+	}
+	h.hub.broadcast(f.Channel, marshal(messageFrame{Type: "message", Channel: f.Channel, Message: msg}), except)
 	if kind == "room" {
 		h.notifyMentions(f.Channel, msg)
 	}
