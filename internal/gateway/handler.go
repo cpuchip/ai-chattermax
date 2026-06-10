@@ -179,6 +179,12 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 		}
 		f.Body = newBody
 		transformed = true
+	} else if strings.Contains(f.Body, "/roll ") || strings.Contains(f.Body, "/init ") {
+		// Inline commands mid-message: "I lunge! /roll 1d20+5" rolls in place.
+		if nb, changed := h.expandInline(context.Background(), c, f.Channel, kind, f.Body); changed {
+			f.Body = nb
+			transformed = true
+		}
 	}
 	ctx := context.Background()
 	var (

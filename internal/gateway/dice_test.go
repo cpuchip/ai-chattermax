@@ -65,3 +65,26 @@ func TestRollCommand_RangeAndShape(t *testing.T) {
 		t.Fatal("bad spec must error")
 	}
 }
+
+func TestExpandInline_Roll(t *testing.T) {
+	h := &Handler{} // /roll expansion touches no store; kind "dm" skips /init
+	out, changed := h.expandInline(t.Context(), nil, "ch", "dm", "I lunge at the goblin! /roll 1d20+5 — take that")
+	if !changed || !strings.Contains(out, "🎲 `1d20+5` →") || !strings.Contains(out, "take that") {
+		t.Fatalf("inline roll not expanded: %q", out)
+	}
+	// Unparseable specs stay literal prose.
+	out, changed = h.expandInline(t.Context(), nil, "ch", "dm", "what does /roll mean here")
+	if changed || out != "what does /roll mean here" {
+		t.Fatalf("prose must be untouched: %q", out)
+	}
+	// Cap: only the first 3 expand.
+	out, _ = h.expandInline(t.Context(), nil, "ch", "dm", "/roll d4 a /roll d4 b /roll d4 c /roll d4 d")
+	if got := strings.Count(out, "🎲"); got != 3 {
+		t.Fatalf("want 3 expansions, got %d: %q", got, out)
+	}
+	// "adv" binds only as a word.
+	out, changed = h.expandInline(t.Context(), nil, "ch", "dm", "I /roll 1d20 advance carefully")
+	if !changed || !strings.Contains(out, "advance carefully") || strings.Contains(out, "keep high") {
+		t.Fatalf("adv must not eat prose: %q", out)
+	}
+}

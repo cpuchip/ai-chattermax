@@ -86,7 +86,7 @@ function submit() {
 // roster + server members). ↑↓ select, Enter/Tab complete, Esc dismiss.
 const taRef = ref<HTMLTextAreaElement | null>(null)
 const acIndex = ref(0)
-const acToken = ref<{ mode: 'cmd' | 'mention'; start: number; text: string } | null>(null)
+const acToken = ref<{ mode: 'cmd' | 'cmd-inline' | 'mention'; start: number; text: string } | null>(null)
 
 function updateToken() {
   const el = taRef.value
@@ -95,6 +95,14 @@ function updateToken() {
   const upto = text.value.slice(0, pos)
   if (/^\/[a-z0-9]*$/i.test(upto)) {
     acToken.value = { mode: 'cmd', start: 0, text: upto.slice(1) }
+    acIndex.value = 0
+    return
+  }
+  // Mid-message: only the inline-executable commands (/roll, /init) complete.
+  const ws = Math.max(upto.lastIndexOf(' '), upto.lastIndexOf('\n'))
+  const word = upto.slice(ws + 1)
+  if (ws >= 0 && /^\/[a-z0-9]*$/i.test(word)) {
+    acToken.value = { mode: 'cmd-inline', start: ws + 1, text: word.slice(1) }
     acIndex.value = 0
     return
   }
@@ -111,9 +119,9 @@ const acItems = computed(() => {
   const tk = acToken.value
   if (!tk) return []
   const q = tk.text.toLowerCase()
-  if (tk.mode === 'cmd') {
+  if (tk.mode === 'cmd' || tk.mode === 'cmd-inline') {
     return state.commands
-      .filter((c) => c.name.startsWith(q))
+      .filter((c) => c.name.startsWith(q) && (tk.mode === 'cmd' || c.name === 'roll' || c.name === 'init'))
       .map((c) => ({ key: c.name, label: '/' + c.name, hint: c.args ?? '', help: c.help ?? '', insert: '/' + c.name + ' ' }))
   }
   const ch = state.currentDMId || state.currentRoomId
