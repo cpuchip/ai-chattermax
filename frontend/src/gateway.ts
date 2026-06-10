@@ -8,6 +8,7 @@ export interface GatewayHandlers {
   onHistory?: (channel: string, msgs: Message[]) => void
   onPresenceSnapshot?: (channel: string, roster: Participant[]) => void
   onPresence?: (channel: string, state: string, who: Participant) => void
+  onTyping?: (channel: string, who: string) => void
   onStatus?: (connected: boolean) => void
 }
 
@@ -70,6 +71,7 @@ export class Gateway {
         if (f.roster) this.handlers.onPresenceSnapshot?.(f.channel, f.roster)
         else if (f.state && f.who) this.handlers.onPresence?.(f.channel, f.state, f.who)
         break
+      case 'typing': if (f.who) this.handlers.onTyping?.(f.channel, f.who); break
     }
   }
 }

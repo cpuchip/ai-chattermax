@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { state, actions } from '../store'
 import { renderMarkdown } from '../lib/markdown'
 import { useScripturePanel } from '../composables/useScripturePanel'
@@ -23,6 +23,26 @@ const placeholder = computed(() => dm.value ? `Message ${dm.value.otherName}` : 
 const isMine = (id: string) => state.me && id === state.me.id
 const timeOf = (ts: string) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 const initial = (s: string) => s[0]?.toUpperCase() ?? '?'
+
+// "X is typing…" — a 1s tick makes expiry reactive; entries past their expiry
+// drop out (the persona-host refreshes every 3s while a turn runs).
+const nowTick = ref(Date.now())
+let tickTimer: number | undefined
+onMounted(() => { tickTimer = window.setInterval(() => { nowTick.value = Date.now() }, 1000) })
+onUnmounted(() => { if (tickTimer) clearInterval(tickTimer) })
+const typingNames = computed(() => {
+  const ch = state.currentDMId || state.currentRoomId
+  const m = state.typing[ch]
+  if (!m) return [] as string[]
+  return Object.entries(m).filter(([, exp]) => exp > nowTick.value).map(([who]) => who)
+})
+const typingLabel = computed(() => {
+  const n = typingNames.value
+  if (n.length === 0) return ''
+  if (n.length === 1) return `${n[0]} is typing…`
+  if (n.length === 2) return `${n[0]} and ${n[1]} are typing…`
+  return `${n.length} people are typing…`
+})
 
 function submit() {
   if (!text.value.trim()) return
@@ -78,6 +98,10 @@ watch(() => messages.value.length, async () => {
           <div class="cm-bubble cm-md" :class="{ persona: m.senderKind === 'persona' && !isMine(m.senderId) }" @click="onBodyClick" v-html="renderMarkdown(m.body)" />
         </div>
       </div>
+    </div>
+
+    <div class="cm-typing" :class="{ on: !!typingLabel }">
+      <span v-if="typingLabel"><span class="cm-typing-dots"><i></i><i></i><i></i></span>{{ typingLabel }}</span>
     </div>
 
     <form class="cm-composer" @submit.prevent="submit">

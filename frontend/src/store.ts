@@ -20,6 +20,7 @@ interface State {
   registry: RegistryMember[]
   messages: Record<string, Message[]>
   roster: Record<string, Participant[]>
+  typing: Record<string, Record<string, number>> // channel → who → expiry ms
   error: string
   ui: { drawer: boolean; rosterOpen: boolean; view: 'chat' | 'settings' }
 }
@@ -40,6 +41,7 @@ export const state = reactive<State>({
   registry: [],
   messages: {},
   roster: {},
+  typing: {},
   error: '',
   ui: { drawer: false, rosterOpen: false, view: 'chat' },
 })
@@ -51,7 +53,14 @@ function ensureGateway() {
   gateway = new Gateway({
     onStatus: (c) => { state.connected = c },
     onHistory: (ch, msgs) => { state.messages[ch] = msgs },
-    onMessage: (ch, msg) => { (state.messages[ch] ||= []).push(msg) },
+    onMessage: (ch, msg) => {
+      (state.messages[ch] ||= []).push(msg)
+      // A real message from a sender clears their "typing…" immediately.
+      if (state.typing[ch]) delete state.typing[ch][msg.sender]
+    },
+    // "<persona> is typing…" — refreshed every ~3s by the persona-host; we keep
+    // a short expiry so it clears on its own if the turn ends without a message.
+    onTyping: (ch, who) => { (state.typing[ch] ||= {})[who] = Date.now() + 6000 },
     onPresenceSnapshot: (ch, roster) => { state.roster[ch] = roster },
     onPresence: (ch, st, who) => {
       const list = state.roster[ch] ||= []
