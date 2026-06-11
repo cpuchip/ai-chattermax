@@ -403,6 +403,40 @@ prompt-level v1).
   via lore tools, @mentions when the program is ready — the chime); first
   campaign at the table with Michael.
 
+- **✅ DH-4 BUILT + DEPLOYED + LIVE-VERIFIED (2026-06-11 overnight; first
+  campaign + /archive live-proof remain for Michael's table):**
+  **dnd-tools v0.2** (`7c51d0f`): attacks/spells/conditions on the sheet,
+  `dnd_char_attack`/`dnd_char_cast` (slots spent for real), `dnd_lore_*`
+  (dm_secret never served on the player HTTP surface — tested), room↔campaign
+  binding, HTTP API v2 (bearer auth, by-player resolution, resolve/cast/hp/
+  PATCH), MCP over streamable HTTP, `-serve` container mode + Dockerfile.
+  **Deployed:** `dnd` service in the chattermax compose (built from the public
+  repo; SQLite volume) at **dnd.ibeco.me** (Dokploy domain + env key set via
+  API; wildcard DNS already covered it). **The state unified:** the substrate
+  bridge flipped to remote MCP (dnd2 ledgered; bridge resolves embedded
+  `$env:` in http URLs) — 19 dnd tools cached FROM the deployed service.
+  **chattermax (`fec69ba`, deployed):** /attack (rolls to-hit from YOUR
+  weapon, hands back the damage roll for the DM's call) · /check · /save ·
+  /cast (rolls known damage dice) · /hp; /char opens the editable sheet PANEL
+  (ScripturePanel mold, PATCH via proxy — key never reaches the browser); HP
+  chips on roster cast + player names; /archive + /resume broadcast a
+  `program` frame; registry-driven autocomplete picked all 8 up with zero
+  frontend changes (verified). **persona-host:** program frame → one closing
+  log-writing turn (dnd_campaign_log) → session rotation (character minds
+  persist — promoted sessions are room-agnostic by design); gamemaster prompt
+  v2 (lore + session-boundary discipline).
+  **LIVE PROOFS:** table set up by one Party turn through the REMOTE (campaign
+  created+bound, Vexa with Dagger+Fire Bolt, lore entry — 10s/$0.024) · all
+  four commands in Holodeck-3 at ~0.1s ("/attack the goblin sentry with
+  dagger" → 🎲 [18]+5 = **23** to hit + the damage roll) · /char proxy served
+  the full sheet to a member session · **state unification: a human's /hp -3
+  was read back by the Party persona through its own tools as 6/9 HP.**
+  Gotcha caught by the first git-context build: an unanchored `dnd-mcp`
+  gitignore had kept cmd/dnd-mcp out of the public repo entirely.
+  **Remaining (with Michael):** /archive live-proof (needs a room admin at
+  the table — the gate correctly refuses members), the prep-room ritual, and
+  the FIRST REAL CAMPAIGN.
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
