@@ -334,6 +334,36 @@ With D1–D6, the flow is composition, not new architecture:
   spawn path takes a model param). The PC trinity awaits its third leg: DH-3
   sheets.
 
+- **✅ DH-3 SHIPPED + PROVEN LIVE (2026-06-10/11 overnight):**
+  **github.com/cpuchip/dnd-tools** is public — Go MCP server (strongs twin),
+  pure-Go SQLite (CGO-free), 11 `dnd_`-prefixed tools: campaigns + session log
+  (`dnd_campaign_create/get/log` — the /archive record), sheets on SRD 5.2
+  (`dnd_char_create/get/list/update/levelup` — class-derived HP/saves,
+  standard-array/CSV/JSON abilities), **`dnd_char_check`** (modifier +
+  breakdown + the exact `/roll` command — the server NEVER rolls; one dice
+  implementation stays chattermax's), and `dnd_ref_search/get` (Open5e v2,
+  `srd-2024` default / `srd-2014` option, read-through cache in the same
+  SQLite file). Optional read-only HTTP sheet API. CC-BY-4.0 SRD attribution
+  in the README. Unit-tested (rules math, store roundtrips, check strings) +
+  stdio-smoke-tested end to end.
+  **Substrate wiring:** dnd1-mcp-seed (ledgered) = `dnd` mcp_server (bridge
+  cross-compile, state at `/workspace/projects/dnd-tools/.data/dnd.db`) +
+  `gamemaster` agent (deny * / allow dnd_* + room_say) + `persona-turn-dnd`
+  pipeline (tools on, 16k); dm-assistant + party seeded onto it
+  (party default_promote=true now seed-owned); promoted-character framing
+  points at the sheet tools.
+  **Proven:** substrate e2e — one turn created the campaign + Vexa Nightbloom
+  (halfling rogue, Stealth +5 = DEX+3/prof+2, HP 9) and answered with the
+  suggested roll, 15s/$0.017, rows verified in SQLite; live Holodeck-3 —
+  "@Party what does Vexa roll to sneak?" → sheet-backed "+5 — DEX +3,
+  proficiency +2" with the `/roll` posted and inline-rolled, ~12s.
+  **Bonus fix:** the live test caught cast addressing matching INSIDE words
+  ("Vex" woke the DM on "Vexa Nightbloom") — `isAddressed` now matches on
+  word boundaries (regression-tested; verified live: second run fired exactly
+  one work item, Party's). Watch: a phantom 👀 add/remove frame pair appeared
+  at subscribe+2s with no work item behind it (display-layer only; likely tied
+  to the stale duplicate host instance that was also swept this session).
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
