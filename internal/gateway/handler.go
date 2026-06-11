@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cpuchip/ai-chattermax/internal/dnd"
 	"github.com/cpuchip/ai-chattermax/internal/store"
 	"github.com/gorilla/websocket"
 )
@@ -33,14 +34,16 @@ type UserResolver func(r *http.Request) (store.User, bool)
 
 // Handler upgrades /gateway connections and runs the per-client pumps.
 type Handler struct {
-	hub      *Hub
-	store    *store.Store
-	resolve  UserResolver
+	hub     *Hub
+	store   *store.Store
+	resolve UserResolver
+	dnd     *dnd.Client
 }
 
-// NewHandler builds the gateway handler.
-func NewHandler(hub *Hub, st *store.Store, resolve UserResolver) *Handler {
-	return &Handler{hub: hub, store: st, resolve: resolve}
+// NewHandler builds the gateway handler. dndClient may be a disabled client
+// (no URL) — the D&D commands then explain themselves instead of working.
+func NewHandler(hub *Hub, st *store.Store, resolve UserResolver, dndClient *dnd.Client) *Handler {
+	return &Handler{hub: hub, store: st, resolve: resolve, dnd: dndClient}
 }
 
 // ServeHTTP authenticates (session cookie → human, or ?key= → persona), upgrades
@@ -313,8 +316,20 @@ func (h *Handler) runCommand(c *Client, f clientFrame, kind, trimmed string, hum
 	case "mood":
 		h.handleMood(c, clientFrame{Mood: args}, human)
 		return "", true
+	case "check":
+		return h.handleDndCheck(c, f.Channel, args, false)
+	case "save":
+		return h.handleDndCheck(c, f.Channel, args, true)
+	case "attack":
+		return h.handleDndAttack(c, f.Channel, args)
+	case "cast":
+		return h.handleDndCast(c, f.Channel, args)
+	case "hp":
+		return h.handleDndHP(c, f.Channel, args)
+	case "archive", "resume":
+		return h.handleProgram(c, f.Channel, strings.ToLower(cmd), human, persona)
 	default:
-		c.enqueue(marshal(errorFrame{Type: "error", Message: "unknown command /" + cmd + " — try /roll, /init, /me, /mood"}))
+		c.enqueue(marshal(errorFrame{Type: "error", Message: "unknown command /" + cmd + " — try /roll, /init, /check, /attack, /me, /mood"}))
 		return "", true
 	}
 }

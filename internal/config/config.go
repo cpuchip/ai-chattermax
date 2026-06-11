@@ -16,6 +16,8 @@ type Config struct {
 	CookieDomain string // e.g. ".ibeco.me" in prod; "" for localhost
 	CookieSecure bool
 	IbecoBaseURL string // where the ibeco handshake calls GET /api/me
+	DNDURL       string // dnd-tools service base URL ("" disables D&D commands)
+	DNDAPIKey    string // bearer key for the dnd-tools service
 }
 
 // DevMode reports whether the dev authenticator (name-login, no ibeco.me) is in use.
@@ -30,6 +32,8 @@ func Load() Config {
 		AuthMode:     strings.ToLower(envOr("AUTH_MODE", "dev")),
 		CookieDomain: os.Getenv("COOKIE_DOMAIN"),
 		IbecoBaseURL: strings.TrimRight(envOr("IBECO_BASE_URL", "https://ibeco.me"), "/"),
+		DNDURL:       strings.TrimRight(os.Getenv("DND_URL"), "/"),
+		DNDAPIKey:    os.Getenv("DND_API_KEY"),
 	}
 	if c.DatabaseURL == "" {
 		c.DatabaseURL = buildDSN()

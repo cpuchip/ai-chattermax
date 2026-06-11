@@ -83,6 +83,16 @@ type castFrame struct {
 	Cast    []store.SubPersona `json:"cast"`
 }
 
+// programFrame announces a holodeck session boundary (DH-4): persona hosts
+// write their campaign notes and rotate sessions on "archive"; "resume"
+// reopens play on fresh sessions seeded from the campaign log.
+type programFrame struct {
+	Type    string `json:"type"` // "program"
+	Channel string `json:"channel"`
+	Op      string `json:"op"` // archive | resume
+	By      string `json:"by"`
+}
+
 type reactionFrame struct {
 	Type      string      `json:"type"` // "reaction"
 	Channel   string      `json:"channel"`

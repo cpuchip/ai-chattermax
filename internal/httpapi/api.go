@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cpuchip/ai-chattermax/internal/auth"
+	"github.com/cpuchip/ai-chattermax/internal/dnd"
 	"github.com/cpuchip/ai-chattermax/internal/store"
 )
 
@@ -17,11 +18,13 @@ import (
 type API struct {
 	store    *store.Store
 	authMode string
+	dnd      *dnd.Client
 }
 
-// New builds the API.
-func New(st *store.Store, authMode string) *API {
-	return &API{store: st, authMode: authMode}
+// New builds the API. dndClient may be disabled (no URL) — the /api/dnd/*
+// routes then answer 501.
+func New(st *store.Store, authMode string, dndClient *dnd.Client) *API {
+	return &API{store: st, authMode: authMode, dnd: dndClient}
 }
 
 // Register attaches the (authenticated) REST routes to a mux. The caller wraps
@@ -48,6 +51,7 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/rooms/{id}/messages", a.roomMessages)
 	mux.HandleFunc("GET /api/rooms/{id}/search", a.roomSearch)
 	mux.HandleFunc("GET /api/commands", a.listCommands)
+	a.registerDND(mux)
 	mux.HandleFunc("GET /api/notifications", a.listNotifications)
 	mux.HandleFunc("POST /api/notifications/read", a.readNotifications)
 	mux.HandleFunc("GET /api/dms", a.listMyDMs)
@@ -85,13 +89,26 @@ func (a *API) PersonaRoomsHandler(w http.ResponseWriter, r *http.Request) {
 // is data-driven from this, so new commands (e.g. dnd-tools' /char) appear
 // without frontend changes.
 func (a *API) listCommands(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, []map[string]string{
+	cmds := []map[string]string{
 		{"name": "roll", "args": "2d6+3 [comment] | d20 adv|dis", "help": "Roll dice — the server rolls, in the open"},
 		{"name": "initiative", "args": "start [comment]", "help": "Call for initiative — opens the turn-order panel"},
 		{"name": "init", "args": "+3 | add <name> +2 | next | remove <name> | end — all take [comment]", "help": "Join / run the turn order"},
 		{"name": "me", "args": "does something", "help": "Emote as yourself, in italics"},
 		{"name": "mood", "args": "😎 (empty clears)", "help": "Set your roster mood"},
-	})
+	}
+	if a.dnd.Enabled() {
+		cmds = append(cmds,
+			map[string]string{"name": "attack", "args": "the goblin with longsword", "help": "Attack from your sheet — rolls to hit; damage follows the DM's call"},
+			map[string]string{"name": "check", "args": "stealth | perception | str", "help": "Roll a skill or ability check from your sheet"},
+			map[string]string{"name": "save", "args": "dex | wis", "help": "Roll a saving throw from your sheet"},
+			map[string]string{"name": "cast", "args": "fireball [@5]", "help": "Cast a known spell — spends the slot"},
+			map[string]string{"name": "hp", "args": "-5 | +3 [character]", "help": "Apply damage or healing to a sheet"},
+			map[string]string{"name": "char", "args": "[character]", "help": "Open the character sheet panel"},
+			map[string]string{"name": "archive", "args": "", "help": "Archive the session — personas log and rotate (room admins)"},
+			map[string]string{"name": "resume", "args": "", "help": "Resume the program from the campaign log (room admins)"},
+		)
+	}
+	writeJSON(w, 200, cmds)
 }
 
 // listNotifications returns the caller's latest mention alerts.

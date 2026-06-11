@@ -1,8 +1,9 @@
 // The app store: a reactive singleton wiring the REST api + the gateway client
 // into view state. Components read `state` and call `actions`.
 import { reactive } from 'vue'
-import { api, type Command, type InitiativeRound, type SubPersona, type User, type Server, type Room, type Persona, type Message, type Notification, type Participant, type RegistryMember, type DMSummary } from './api'
+import { api, type Command, type DndCharacter, type InitiativeRound, type SubPersona, type User, type Server, type Room, type Persona, type Message, type Notification, type Participant, type RegistryMember, type DMSummary } from './api'
 import { Gateway } from './gateway'
+import { useCharacterPanel } from './composables/useCharacterPanel'
 
 interface State {
   loading: boolean
@@ -25,6 +26,7 @@ interface State {
   commands: Command[]
   initiative: Record<string, InitiativeRound | undefined> // channel → active round
   cast: Record<string, SubPersona[]> // channel → cast members (DH-2)
+  dndCharacters: Record<string, DndCharacter[]> // room → campaign roster (DH-4 HP chips)
   error: string
   ui: { drawer: boolean; rosterOpen: boolean; view: 'chat' | 'settings' | 'alerts' }
 }
@@ -50,6 +52,7 @@ export const state = reactive<State>({
   commands: [],
   initiative: {},
   cast: {},
+  dndCharacters: {},
   error: '',
   ui: { drawer: false, rosterOpen: false, view: 'chat' },
 })
@@ -65,6 +68,8 @@ function ensureGateway() {
       (state.messages[ch] ||= []).push(msg)
       // A real message from a sender clears their "typing…" immediately.
       if (state.typing[ch]) delete state.typing[ch][msg.sender]
+      // DH-4: command results that change sheets refresh the HP chips.
+      if (/^(🩸|💚|⚔️|✨|📼|▶️)/u.test(msg.body)) actions.loadDndRoster(ch)
     },
     // "<persona> is typing…" — refreshed every ~3s by the persona-host; we keep
     // a short expiry so it clears on its own if the turn ends without a message.
@@ -180,6 +185,19 @@ export const actions = {
     gateway?.subscribe(id) // idempotent server-side; ensures presence + history
     state.ui.view = 'chat'
     state.ui.drawer = false
+    this.loadDndRoster(id)
+  },
+
+  // DH-4: the room campaign's sheets (HP chips). Rooms without a bound
+  // campaign — or servers without dnd-tools — just stay empty.
+  async loadDndRoster(roomId: string) {
+    if (!roomId) return
+    try {
+      const res = await api.dndRoomCharacters(roomId)
+      state.dndCharacters[roomId] = res.characters ?? []
+    } catch {
+      state.dndCharacters[roomId] = []
+    }
   },
 
   selectDM(id: string) {
@@ -266,6 +284,12 @@ export const actions = {
   send(body: string) {
     const ch = state.currentDMId || state.currentRoomId
     if (!ch || !body.trim() || !state.me) return
+    // /char is a client command: it opens the sheet panel, posts nothing.
+    const charCmd = body.trim().match(/^\/char(?:\s+(.+))?$/i)
+    if (charCmd) {
+      if (state.currentRoomId) useCharacterPanel().open(state.currentRoomId, charCmd[1]?.trim() || undefined)
+      return
+    }
     // optimistic — the server broadcasts to everyone except us. Slash commands
     // are the exception: the server transforms them (/roll → the result) and
     // echoes the authoritative message back to us, so no optimistic copy.

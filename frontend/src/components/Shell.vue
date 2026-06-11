@@ -7,6 +7,7 @@ import RosterPanel from './RosterPanel.vue'
 import SettingsView from './SettingsView.vue'
 import AlertsView from './AlertsView.vue'
 import ScripturePanel from './ScripturePanel.vue'
+import CharacterPanel from './CharacterPanel.vue'
 
 const room = computed(() => actions.currentRoom())
 const dm = computed(() => actions.currentDM())
@@ -50,5 +51,6 @@ const activeLabel = computed(() => dm.value ? dm.value.otherName : (room.value ?
     <div class="cm-scrim" :class="{ show: state.ui.drawer || state.ui.rosterOpen }" @click="actions.closeDrawers()" />
 
     <ScripturePanel />
+    <CharacterPanel />
   </div>
 </template>

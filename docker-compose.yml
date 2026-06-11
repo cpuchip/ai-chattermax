@@ -35,6 +35,11 @@ services:
       AUTH_MODE: ${AUTH_MODE:-ibeco}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.ibeco.me}
       IBECO_BASE_URL: ${IBECO_BASE_URL:-https://ibeco.me}
+      # DH-4: the dnd-tools sidecar (sheets for /attack, /check, /char…).
+      # Internal service-name URL; the key gates writes (set it in the
+      # deployment env — commands stay politely disabled if unset).
+      DND_URL: ${DND_URL:-http://dnd:8089}
+      DND_API_KEY: ${DND_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,6 +56,33 @@ services:
       retries: 3
       start_period: 10s
 
+  # dnd-tools (DH-4): campaign + character sheets behind the D&D slash
+  # commands, and the substrate personas' remote MCP (/mcp?key=). Built
+  # straight from the public repo. State is one SQLite file on a volume.
+  # The dnd.ibeco.me domain (for the remote bridge) is attached by Dokploy's
+  # domain config, same as chattermax's.
+  dnd:
+    build:
+      context: https://github.com/cpuchip/dnd-tools.git
+    environment:
+      DND_DB: /data/dnd.db
+      DND_HTTP: ":8089"
+      DND_API_KEY: ${DND_API_KEY:-}
+    volumes:
+      - dnddata:/data
+    expose:
+      - "8089"
+    networks:
+      - internal
+      - dokploy-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8089/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
 networks:
   dokploy-network:
     external: true
@@ -58,3 +90,4 @@ networks:
 
 volumes:
   pgdata:
+  dnddata:

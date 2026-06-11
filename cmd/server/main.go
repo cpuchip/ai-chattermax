@@ -19,6 +19,7 @@ import (
 	"github.com/cpuchip/ai-chattermax/internal/auth"
 	"github.com/cpuchip/ai-chattermax/internal/config"
 	"github.com/cpuchip/ai-chattermax/internal/db"
+	"github.com/cpuchip/ai-chattermax/internal/dnd"
 	"github.com/cpuchip/ai-chattermax/internal/gateway"
 	"github.com/cpuchip/ai-chattermax/internal/httpapi"
 	"github.com/cpuchip/ai-chattermax/internal/seed"
@@ -27,7 +28,7 @@ import (
 
 // buildTag is surfaced at GET /api/version so a deploy's freshness is verifiable
 // (Dokploy has silently served stale binaries). Bump it with backend changes.
-const buildTag = "axr2b-delete-2026-06-05"
+const buildTag = "dh4-dnd-commands-2026-06-11"
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
@@ -83,9 +84,13 @@ func main() {
 		}
 	}
 
-	api := httpapi.New(st, cfg.AuthMode)
+	dndClient := dnd.New(cfg.DNDURL, cfg.DNDAPIKey)
+	if dndClient.Enabled() {
+		log.Printf("dnd-tools integration enabled: %s", cfg.DNDURL)
+	}
+	api := httpapi.New(st, cfg.AuthMode, dndClient)
 	hub := gateway.NewHub()
-	gw := gateway.NewHandler(hub, st, authService.UserFromRequest)
+	gw := gateway.NewHandler(hub, st, authService.UserFromRequest, dndClient)
 
 	// Protected API routes (the user is required + placed in context).
 	protected := http.NewServeMux()

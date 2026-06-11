@@ -16,6 +16,21 @@ export interface Participant { id: string; name: string; kind: string; avatar?: 
 export interface RegistryMember { userId: string; displayName: string; avatarUrl?: string; role: string; personas: Persona[] }
 export interface DMSummary { id: string; kind: string; otherId: string; otherName: string; otherKind: string }
 
+// DH-4 — a dnd-tools character sheet (mirrors the service's JSON).
+export interface DndAttack { name: string; ability?: string; proficient: boolean; magic_bonus?: number; damage: string; damage_type?: string; range?: string; notes?: string }
+export interface DndSpell { name: string; level: number; key?: string; prepared?: boolean; notes?: string }
+export interface DndItem { name: string; qty: number; notes?: string }
+export interface DndCharacter {
+  id: number; campaign: string; name: string; player: string; kind: string
+  species: string; class: string; background: string; alignment: string
+  level: number; xp: number
+  abilities: Record<string, number>; skills: string[]; saves: string[]
+  hp_max: number; hp_current: number; ac: number; speed: number
+  inventory: DndItem[]; spell_slots: Record<string, number>
+  attacks: DndAttack[]; spells: DndSpell[]; conditions: string[]
+  features: string[]; notes: string
+}
+
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
@@ -86,4 +101,14 @@ export const api = {
     req<DMSummary>('POST', '/api/dms', { kind: 'user_user', serverId, userId }),
   dmMessages: (dmId: string) => req<Message[]>('GET', `/api/dms/${dmId}/messages`),
   deleteDM: (dmId: string) => req<void>('DELETE', `/api/dms/${dmId}`),
+
+  // DH-4 — character sheets (proxied to the dnd-tools service; the API key
+  // stays server-side).
+  dndRoomCharacters: (roomId: string) =>
+    req<{ campaign: string; characters: DndCharacter[] }>('GET', `/api/dnd/rooms/${roomId}/characters`),
+  dndMyCharacter: (roomId: string) => req<DndCharacter>('GET', `/api/dnd/rooms/${roomId}/me`),
+  dndCharacter: (roomId: string, name: string) =>
+    req<DndCharacter>('GET', `/api/dnd/rooms/${roomId}/characters/${encodeURIComponent(name)}`),
+  dndPatchCharacter: (roomId: string, name: string, patch: Partial<DndCharacter>) =>
+    req<DndCharacter>('PATCH', `/api/dnd/rooms/${roomId}/characters/${encodeURIComponent(name)}`, patch),
 }

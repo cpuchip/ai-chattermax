@@ -364,6 +364,45 @@ With D1–D6, the flow is composition, not new architecture:
   at subscribe+2s with no work item behind it (display-layer only; likely tied
   to the stale duplicate host instance that was also swept this session).
 
+## DH-4 — RATIFIED SCOPE (2026-06-11, 4/4 + Michael's /char panel design)
+
+Decisions: **deploy dnd-tools as a service** next to chattermax (one shared DB;
+chattermax slash commands call its JSON API server-side; the LOCAL bridge
+reaches the same service as remote MCP over streamable HTTP — the exa-search
+transport, already supported) · commands **/attack /check /save /cast /hp**
+(+ **/char opens an editable character PANEL** — the ScripturePanel pattern —
+with **HP shown next to character names** in the roster and on the sheet) ·
+sheet depth **attacks + spells + conditions** · **dnd_lore** registry
+(campaign-scoped location/npc/faction/plot/item, `dm_secret` flag — secrets
+excluded from the player-facing HTTP surface; persona-side secrecy is
+prompt-level v1).
+
+**Tracks:**
+- **4A dnd-tools v0.2:** structured attacks (ability+prof+magic derivation,
+  damage dice/type) + known-spells list (Open5e keys, prepared, cast
+  decrements slots) + conditions; `dnd_char_attack` (to-hit roll + on-hit
+  damage roll, Michael's flow: to-hit → DM adjudicates → damage) +
+  `dnd_char_cast`; `dnd_lore_set/get/list/search`; campaign↔room binding
+  (`dnd_campaign_bind`); HTTP API v2 (bearer auth, by-player resolution,
+  resolve/attack/check/cast endpoints, PATCH sheet editing, hp); MCP over
+  streamable HTTP (`?key=` auth) for the remote bridge; column migrations;
+  Dockerfile + ghcr image publish.
+- **4B deploy:** dnd service in the chattermax compose (ghcr image, volume);
+  public dnd.ibeco.me (the local bridge must reach it); chattermax env
+  DND_URL/DND_API_KEY; substrate dnd2 migration flips the `dnd` mcp_server
+  to transport=http. Local bridge SQLite state retires (test data only).
+- **4C chattermax:** the command family (server-side, calls the dnd API;
+  results posted like /roll transforms; attack result carries the ready
+  damage roll); `/char` panel (slide-in, editable, PATCH via a chattermax
+  proxy so the API key stays server-side); HP chips in roster + sheet. DM
+  adjudication of attack results = respond_policy `judgment` for the DM in
+  play rooms (config, not code).
+- **4D flow:** /archive + /resume → typed `program` frame → host rotates
+  sessions (archive asks the DM to write dnd_campaign_log first; resume's
+  turn-zero reads dnd_campaign_get); prep-room prompts (DM cooks the world
+  via lore tools, @mentions when the program is ready — the chime); first
+  campaign at the table with Michael.
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
