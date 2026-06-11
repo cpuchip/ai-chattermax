@@ -107,7 +107,24 @@ func (h *Handler) handleInitiative(c *Client, channel, kind, args string, human 
 			mod, _ := strconv.Atoi(m)
 			return h.rollIn(ctx, c, channel, r.ID, c.who.Name, mod, "%s rolls initiative")
 		}
-		return fail("usage: /initiative start · /init +<mod> · /init add <name> [+mod] · /init next · /init remove <name> · /init end")
+		// Bare /init (DH-4/D8 tie-in): pull DEX from YOUR character sheet and
+		// join under the character's name — the sheet is the truth.
+		if strings.TrimSpace(args) == "" && h.dnd.Enabled() {
+			r, ok, err := h.store.ActiveInitiative(ctx, channel)
+			if err != nil || !ok {
+				return fail("no initiative round is running — `/initiative start`")
+			}
+			ch, err := h.dnd.PlayerCharacter(ctx, channel, c.who.Name)
+			if err != nil {
+				return fail(err.Error() + " — or join with an explicit /init +<mod>")
+			}
+			res, err := h.dnd.Check(ctx, ch.Name, ch.Campaign, "initiative")
+			if err != nil {
+				return fail(err.Error())
+			}
+			return h.rollIn(ctx, c, channel, r.ID, ch.Name, res.Mod, "%s rolls initiative (DEX, from the sheet)")
+		}
+		return fail("usage: /initiative start · /init (your sheet's DEX) · /init +<mod> · /init add <name> [+mod] · /init next · /init remove <name> · /init end")
 	}
 }
 

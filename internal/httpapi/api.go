@@ -92,7 +92,7 @@ func (a *API) listCommands(w http.ResponseWriter, r *http.Request) {
 	cmds := []map[string]string{
 		{"name": "roll", "args": "2d6+3 [comment] | d20 adv|dis", "help": "Roll dice — the server rolls, in the open"},
 		{"name": "initiative", "args": "start [comment]", "help": "Call for initiative — opens the turn-order panel"},
-		{"name": "init", "args": "+3 | add <name> +2 | next | remove <name> | end — all take [comment]", "help": "Join / run the turn order"},
+		{"name": "init", "args": "(bare = your sheet's DEX) | +3 | add <name> +2 | next | remove <name> | end — all take [comment]", "help": "Join / run the turn order — bare /init pulls DEX from your character sheet"},
 		{"name": "me", "args": "does something", "help": "Emote as yourself, in italics"},
 		{"name": "mood", "args": "😎 (empty clears)", "help": "Set your roster mood"},
 	}
