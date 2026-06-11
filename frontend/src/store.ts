@@ -27,6 +27,7 @@ interface State {
   initiative: Record<string, InitiativeRound | undefined> // channel → active round
   cast: Record<string, SubPersona[]> // channel → cast members (DH-2)
   dndCharacters: Record<string, DndCharacter[]> // room → campaign roster (DH-4 HP chips)
+  dndCampaign: Record<string, string> // room → bound campaign name ('' = D&D off)
   error: string
   ui: { drawer: boolean; rosterOpen: boolean; view: 'chat' | 'settings' | 'alerts' }
 }
@@ -53,6 +54,7 @@ export const state = reactive<State>({
   initiative: {},
   cast: {},
   dndCharacters: {},
+  dndCampaign: {},
   error: '',
   ui: { drawer: false, rosterOpen: false, view: 'chat' },
 })
@@ -88,6 +90,9 @@ function ensureGateway() {
       else delete state.initiative[ch]
     },
     onCast: (ch, cast) => { state.cast[ch] = cast },
+    // DH-4 room gating: /dnd enable|disable (op 'state') and archive/resume
+    // all mean "re-check the room's campaign binding".
+    onProgram: (ch) => { actions.loadDndRoster(ch) },
     onMood: (ch, who) => {
       const p = state.roster[ch]?.find((x) => x.id === who.id)
       if (p) p.mood = who.mood
@@ -195,8 +200,10 @@ export const actions = {
     try {
       const res = await api.dndRoomCharacters(roomId)
       state.dndCharacters[roomId] = res.characters ?? []
+      state.dndCampaign[roomId] = res.campaign ?? ''
     } catch {
       state.dndCharacters[roomId] = []
+      state.dndCampaign[roomId] = ''
     }
   },
 

@@ -17,6 +17,65 @@ func (a *API) registerDND(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/dnd/rooms/{id}/me", a.dndMyCharacter)
 	mux.HandleFunc("GET /api/dnd/rooms/{id}/characters/{name}", a.dndCharacter)
 	mux.HandleFunc("PATCH /api/dnd/rooms/{id}/characters/{name}", a.dndPatchCharacter)
+	mux.HandleFunc("GET /api/dnd/rooms/{id}/campaign", a.dndRoomCampaign)
+	mux.HandleFunc("PUT /api/dnd/rooms/{id}/campaign", a.dndBindCampaign)
+	mux.HandleFunc("GET /api/dnd/campaigns", a.dndCampaigns)
+}
+
+// dndRoomCampaign reports the room's bound campaign (the D&D switch state) —
+// 404 when unbound, which is the frontend's "D&D off" signal.
+func (a *API) dndRoomCampaign(w http.ResponseWriter, r *http.Request) {
+	roomID, ok := a.dndRoomAccess(w, r)
+	if !ok {
+		return
+	}
+	name, err := a.dnd.CampaignByRoom(r.Context(), roomID)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "no campaign bound")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"campaign": name})
+}
+
+// dndBindCampaign binds/unbinds the room's campaign (room admins) — the
+// Settings panel path; /dnd enable and /campaign are the chat paths.
+func (a *API) dndBindCampaign(w http.ResponseWriter, r *http.Request) {
+	roomID, ok := a.dndRoomAccess(w, r)
+	if !ok {
+		return
+	}
+	u, _ := auth.UserFrom(r.Context())
+	if admin, _ := a.store.UserIsRoomAdmin(r.Context(), roomID, u.ID); !admin {
+		writeErr(w, http.StatusForbidden, "room admins only")
+		return
+	}
+	var body struct {
+		Campaign string `json:"campaign"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeErr(w, http.StatusBadRequest, `body must be {"campaign":"<name>"} (empty unbinds)`)
+		return
+	}
+	name, err := a.dnd.BindRoom(r.Context(), roomID, body.Campaign)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"campaign": name, "bound": body.Campaign})
+}
+
+// dndCampaigns lists campaigns (for the Settings bind picker).
+func (a *API) dndCampaigns(w http.ResponseWriter, r *http.Request) {
+	if !a.dnd.Enabled() {
+		writeErr(w, http.StatusNotImplemented, "dnd-tools is not configured on this server")
+		return
+	}
+	cs, err := a.dnd.Campaigns(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, cs)
 }
 
 // dndRoomAccess gates a request on the integration + room membership and

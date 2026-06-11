@@ -202,6 +202,36 @@ func (c *Client) CampaignByRoom(ctx context.Context, roomID string) (string, err
 	return out.Name, err
 }
 
+// Campaign summarizes a campaign for listings.
+type Campaign struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	RoomID string `json:"room_id"`
+}
+
+// Campaigns lists every campaign on the service.
+func (c *Client) Campaigns(ctx context.Context) ([]Campaign, error) {
+	var out []Campaign
+	err := c.do(ctx, "GET", "/api/campaigns", nil, &out)
+	return out, err
+}
+
+// BindRoom binds a room to a campaign (created if needed); name "" unbinds.
+// Returns the campaign name bound (or previously bound, on unbind).
+func (c *Client) BindRoom(ctx context.Context, roomID, name string) (string, error) {
+	var out struct {
+		Name    string `json:"name"`
+		Unbound string `json:"unbound"`
+	}
+	err := c.do(ctx, "PUT", "/api/rooms/"+url.PathEscape(roomID)+"/campaign",
+		map[string]string{"campaign": name}, &out)
+	if out.Name == "" {
+		return out.Unbound, err
+	}
+	return out.Name, err
+}
+
 // CharacterByName fetches a full sheet as raw JSON (the /char panel).
 func (c *Client) CharacterByName(ctx context.Context, name, campaign string) (json.RawMessage, error) {
 	var raw json.RawMessage

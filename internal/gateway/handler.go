@@ -328,6 +328,10 @@ func (h *Handler) runCommand(c *Client, f clientFrame, kind, trimmed string, hum
 		return h.handleDndHP(c, f.Channel, args)
 	case "archive", "resume":
 		return h.handleProgram(c, f.Channel, strings.ToLower(cmd), human, persona)
+	case "dnd":
+		return h.handleDndToggle(c, f.Channel, args, human, persona)
+	case "campaign":
+		return h.handleCampaign(c, f.Channel, args, human, persona)
 	default:
 		c.enqueue(marshal(errorFrame{Type: "error", Message: "unknown command /" + cmd + " — try /roll, /init, /check, /attack, /me, /mood"}))
 		return "", true

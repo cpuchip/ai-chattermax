@@ -14,6 +14,7 @@ export interface GatewayHandlers {
   onMood?: (channel: string, who: Participant) => void
   onInitiative?: (channel: string, round: InitiativeRound) => void
   onCast?: (channel: string, cast: SubPersona[]) => void
+  onProgram?: (channel: string, op: string) => void
   onStatus?: (connected: boolean) => void
 }
 
@@ -90,6 +91,7 @@ export class Gateway {
       case 'mood': if (f.who) this.handlers.onMood?.(f.channel, f.who); break
       case 'initiative': if (f.round) this.handlers.onInitiative?.(f.channel, f.round); break
       case 'cast': this.handlers.onCast?.(f.channel, f.cast ?? []); break
+      case 'program': this.handlers.onProgram?.(f.channel, f.op); break
     }
   }
 }

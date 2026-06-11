@@ -5,7 +5,7 @@ export interface Server { id: string; slug: string; name: string; ownerUserId: s
 export interface Room { id: string; serverId: string; slug: string; name: string; visibility: string; topic?: string }
 export interface Persona { id: string; serverId: string; ownerUserId: string; slug: string; displayName: string; hostKind: string; hostRef?: string; status: string; dmEnabled: boolean; respondPolicy: string; avatarUrl?: string }
 export interface Notification { id: string; kind: string; roomId: string; roomName?: string; messageId: string; from: string; snippet: string; createdAt: string; readAt?: string }
-export interface Command { name: string; args?: string; help?: string }
+export interface Command { name: string; args?: string; help?: string; group?: string }
 export interface SubPersona { id: string; personaId: string; personaName?: string; roomId: string; displayName: string }
 export interface InitiativeEntry { id: string; name: string; modifier: number; roll: number; total: number }
 export interface InitiativeRound { id: string; roomId: string; round: number; currentEntryId?: string; starterId?: string; active: boolean; entries: InitiativeEntry[] | null }
@@ -111,4 +111,9 @@ export const api = {
     req<DndCharacter>('GET', `/api/dnd/rooms/${roomId}/characters/${encodeURIComponent(name)}`),
   dndPatchCharacter: (roomId: string, name: string, patch: Partial<DndCharacter>) =>
     req<DndCharacter>('PATCH', `/api/dnd/rooms/${roomId}/characters/${encodeURIComponent(name)}`, patch),
+  dndRoomCampaign: (roomId: string) =>
+    req<{ campaign: string }>('GET', `/api/dnd/rooms/${roomId}/campaign`),
+  dndCampaigns: () => req<{ id: number; name: string; status: string; room_id: string }[]>('GET', '/api/dnd/campaigns'),
+  dndBindCampaign: (roomId: string, campaign: string) =>
+    req<{ campaign: string }>('PUT', `/api/dnd/rooms/${roomId}/campaign`, { campaign }),
 }

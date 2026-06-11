@@ -218,6 +218,8 @@ input, textarea { font-family: inherit; }
 /* Initiative strip (DH-1/D8): the turn order, pinned above the transcript. */
 .cm-initiative { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 16px; border-bottom: 2px solid var(--lcars-orange); background: rgba(255,153,0,.06); }
 .cm-init-round { font-family: var(--font-lcars); font-size: 0.85rem; letter-spacing: 1px; color: var(--lcars-orange); white-space: nowrap; }
+/* DH-4: the room's bound campaign (the D&D switch state). */
+.cm-campchip { background: rgba(255, 153, 102, 0.14); border: 1px solid rgba(255, 153, 102, 0.4); border-radius: 999px; padding: 1px 10px; font-size: 0.75rem; white-space: nowrap; }
 .cm-init-entry { font-size: 13px; color: var(--lcars-read); padding: 1px 9px; border-radius: 10px; border: 1px solid var(--lcars-navy); white-space: nowrap; }
 .cm-init-entry b { color: var(--lcars-lavender); font-weight: 600; }
 .cm-init-entry.now { border-color: var(--lcars-orange); background: rgba(255,153,0,.18); color: var(--lcars-gold); }

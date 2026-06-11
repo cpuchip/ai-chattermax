@@ -131,8 +131,12 @@ const acItems = computed(() => {
   if (!tk) return []
   const q = tk.text.toLowerCase()
   if (tk.mode === 'cmd' || tk.mode === 'cmd-inline') {
+    // DH-4 room gating: sheet commands (group 'dnd') only appear in rooms
+    // with a bound campaign; /dnd + /campaign (the switch) always show.
+    const dndOn = !!state.dndCampaign[state.currentRoomId]
     return state.commands
       .filter((c) => c.name.startsWith(q) && (tk.mode === 'cmd' || c.name === 'roll' || c.name === 'init'))
+      .filter((c) => c.group !== 'dnd' || dndOn)
       .map((c) => ({ key: c.name, label: '/' + c.name, hint: c.args ?? '', help: c.help ?? '', insert: '/' + c.name + ' ' }))
   }
   const ch = state.currentDMId || state.currentRoomId
@@ -201,6 +205,7 @@ watch(() => messages.value.length, async () => {
       </template>
       <template v-else>
         <span class="h">{{ room?.visibility === 'private' ? '🔒' : '#' }} {{ room?.name }}</span>
+        <span v-if="state.dndCampaign[state.currentRoomId]" class="cm-campchip" title="This room plays a D&D campaign (/campaign)">🎲 {{ state.dndCampaign[state.currentRoomId] }}</span>
         <span v-if="room?.topic" class="topic">{{ room.topic }}</span>
       </template>
     </header>

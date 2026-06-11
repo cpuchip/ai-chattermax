@@ -188,22 +188,138 @@ func (h *Handler) handleDndHP(c *Client, channel, args string) (string, bool) {
 	return fmt.Sprintf("%s **%s**: %d/%d HP", icon, res.Character, res.HPCurrent, res.HPMax), false
 }
 
-// handleProgram runs /archive and /resume — the holodeck session boundary.
-// Personas and room admins may run it; the broadcast `program` frame tells
-// persona hosts to close out / rotate their sessions.
-func (h *Handler) handleProgram(c *Client, channel, op string, human *store.User, persona *store.Persona) (string, bool) {
-	allowed := persona != nil
-	if human != nil {
-		if ok, err := h.store.UserIsRoomAdmin(context.Background(), channel, human.ID); err == nil && ok {
-			allowed = true
-		}
+// roomAdmin reports whether the sender may run room-scoped admin commands
+// (personas count — the DM persona IS the DM).
+func (h *Handler) roomAdmin(channel string, human *store.User, persona *store.Persona) bool {
+	if persona != nil {
+		return true
 	}
-	if !allowed {
+	if human == nil {
+		return false
+	}
+	ok, err := h.store.UserIsRoomAdmin(context.Background(), channel, human.ID)
+	return err == nil && ok
+}
+
+// handleProgram runs /archive and /resume — the holodeck session boundary.
+// Only rooms with a bound campaign have a "program"; the broadcast frame
+// tells persona hosts to close out / rotate their sessions.
+func (h *Handler) handleProgram(c *Client, channel, op string, human *store.User, persona *store.Persona) (string, bool) {
+	if !h.dndReady(c) {
+		return "", true
+	}
+	if !h.roomAdmin(channel, human, persona) {
 		return h.dndErr(c, "/"+op+" is for room admins (or personas)")
+	}
+	campaign, err := h.dnd.CampaignByRoom(context.Background(), channel)
+	if err != nil {
+		return h.dndErr(c, "this room has no program — /dnd enable binds a campaign first")
 	}
 	h.hub.broadcast(channel, marshal(programFrame{Type: "program", Channel: channel, Op: op, By: c.who.Name}), nil)
 	if op == "archive" {
-		return "📼 **Program archived** — the holodeck dims. Sessions will be summarized and rotated; /resume reopens the program.", false
+		return "📼 **Program archived** — *" + campaign + "* dims. Sessions will be summarized and rotated; /resume reopens the program.", false
 	}
-	return "▶️ **Program resumed** — the holodeck hums back to life. Personas, check the campaign log (dnd_campaign_get) before improvising.", false
+	return "▶️ **Program resumed** — *" + campaign + "* hums back to life. Personas, check the campaign log (dnd_campaign_get) before improvising.", false
+}
+
+// handleDndToggle runs /dnd enable [name] and /dnd disable — the room's D&D
+// switch IS the campaign binding (no separate flag to fall out of sync).
+// Bare /dnd enable creates (or reuses) a campaign named after the room.
+func (h *Handler) handleDndToggle(c *Client, channel, args string, human *store.User, persona *store.Persona) (string, bool) {
+	if !h.dndReady(c) {
+		return "", true
+	}
+	sub, rest, _ := strings.Cut(args, " ")
+	rest = strings.TrimSpace(rest)
+	ctx := context.Background()
+	switch strings.ToLower(sub) {
+	case "enable", "on":
+		if !h.roomAdmin(channel, human, persona) {
+			return h.dndErr(c, "/dnd enable is for room admins")
+		}
+		if name, err := h.dnd.CampaignByRoom(ctx, channel); err == nil {
+			return h.dndErr(c, "this room is already playing **"+name+"** — /dnd disable first to switch")
+		}
+		name := rest
+		if name == "" {
+			name = h.roomCampaignName(channel)
+		}
+		bound, err := h.dnd.BindRoom(ctx, channel, name)
+		if err != nil {
+			return h.dndErr(c, err.Error())
+		}
+		h.broadcastDndState(channel)
+		return "🎲 **D&D enabled** — this room now plays **" + bound + "**. Sheets, /attack, /check and friends are live; /char opens your sheet.", false
+	case "disable", "off":
+		if !h.roomAdmin(channel, human, persona) {
+			return h.dndErr(c, "/dnd disable is for room admins")
+		}
+		was, err := h.dnd.BindRoom(ctx, channel, "")
+		if err != nil {
+			return h.dndErr(c, err.Error())
+		}
+		h.broadcastDndState(channel)
+		return "🚪 **D&D disabled** — **" + was + "** is unbound (the campaign and its sheets are kept; /dnd enable " + was + " brings it back).", false
+	default:
+		return h.dndErr(c, "usage: /dnd enable [campaign name] · /dnd disable")
+	}
+}
+
+// handleCampaign runs /campaign [bind <name> | unbind] — view for everyone,
+// changes for room admins.
+func (h *Handler) handleCampaign(c *Client, channel, args string, human *store.User, persona *store.Persona) (string, bool) {
+	if !h.dndReady(c) {
+		return "", true
+	}
+	sub, rest, _ := strings.Cut(args, " ")
+	rest = strings.TrimSpace(rest)
+	ctx := context.Background()
+	switch strings.ToLower(sub) {
+	case "":
+		name, err := h.dnd.CampaignByRoom(ctx, channel)
+		if err != nil {
+			return h.dndErr(c, "no campaign is bound to this room — /dnd enable starts one")
+		}
+		return "🗺 This room plays **" + name + "**.", false
+	case "bind":
+		if rest == "" {
+			return h.dndErr(c, "usage: /campaign bind <name>")
+		}
+		if !h.roomAdmin(channel, human, persona) {
+			return h.dndErr(c, "/campaign bind is for room admins")
+		}
+		bound, err := h.dnd.BindRoom(ctx, channel, rest)
+		if err != nil {
+			return h.dndErr(c, err.Error())
+		}
+		h.broadcastDndState(channel)
+		return "🗺 This room now plays **" + bound + "**.", false
+	case "unbind":
+		if !h.roomAdmin(channel, human, persona) {
+			return h.dndErr(c, "/campaign unbind is for room admins")
+		}
+		was, err := h.dnd.BindRoom(ctx, channel, "")
+		if err != nil {
+			return h.dndErr(c, err.Error())
+		}
+		h.broadcastDndState(channel)
+		return "🚪 **" + was + "** unbound from this room.", false
+	default:
+		return h.dndErr(c, "usage: /campaign · /campaign bind <name> · /campaign unbind")
+	}
+}
+
+// roomCampaignName derives a default campaign name from the room ("Holodeck-3
+// Campaign"); falls back to a generic name when the room can't be loaded.
+func (h *Handler) roomCampaignName(channel string) string {
+	if room, err := h.store.GetRoom(context.Background(), channel); err == nil && room.Name != "" {
+		return room.Name + " Campaign"
+	}
+	return "New Campaign"
+}
+
+// broadcastDndState nudges subscribers to re-check the room's D&D binding
+// (autocomplete gating + HP chips) via a program frame with op "state".
+func (h *Handler) broadcastDndState(channel string) {
+	h.hub.broadcast(channel, marshal(programFrame{Type: "program", Channel: channel, Op: "state"}), nil)
 }

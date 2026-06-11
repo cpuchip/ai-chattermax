@@ -21,6 +21,29 @@ const grantMsg = reactive<Record<string, string>>({})
 
 const mine = (ownerId: string) => state.me && ownerId === state.me.id
 
+// DH-4: per-room D&D campaign binding (the feature switch). Admin actions
+// mirror /dnd enable + /campaign; the binding lives in dnd-tools.
+const campRoom = ref(state.currentRoomId || state.rooms[0]?.id || '')
+const campaigns = ref<{ id: number; name: string; status: string; room_id: string }[]>([])
+const campSel = ref('')
+const campMsg = ref('')
+const boundName = computed(() => state.dndCampaign[campRoom.value] || '')
+async function loadCampaigns() {
+  try { campaigns.value = await api.dndCampaigns() } catch { campaigns.value = [] }
+}
+loadCampaigns()
+async function bindCampaign(name: string) {
+  campMsg.value = ''
+  try {
+    await api.dndBindCampaign(campRoom.value, name)
+    await actions.loadDndRoster(campRoom.value)
+    await loadCampaigns()
+    campMsg.value = name ? `bound ${name}` : 'unbound'
+  } catch (e) {
+    campMsg.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
 async function createPersona() {
   if (!newName.value.trim()) return
   busy.value = true
@@ -111,6 +134,27 @@ const fmtDate = (s?: string) => (s ? new Date(s).toLocaleString() : '')
         <div v-for="m in state.registry" :key="m.userId" class="cm-rrow" style="margin-bottom:4px">
           <span class="on" /><span style="flex:1">{{ m.displayName }}</span><span class="pmeta">{{ m.role }}</span>
         </div>
+      </div>
+
+      <div class="cm-sec">D&D Campaign</div>
+      <div class="cm-card">
+        <label class="cm-label">Room</label>
+        <div class="cm-formrow">
+          <select v-model="campRoom" class="cm-field" style="width:auto;padding:6px 8px" @change="campMsg = ''">
+            <option v-for="r in state.rooms" :key="r.id" :value="r.id">#{{ r.name }}</option>
+          </select>
+          <span class="pmeta">{{ boundName ? `plays ${boundName}` : 'D&D off' }}</span>
+        </div>
+        <div class="cm-formrow" style="margin-top:8px">
+          <select v-model="campSel" class="cm-field" style="width:auto;padding:6px 8px">
+            <option value="">— pick a campaign —</option>
+            <option v-for="c in campaigns" :key="c.id" :value="c.name">{{ c.name }}{{ c.room_id ? ' (bound elsewhere)' : '' }}</option>
+          </select>
+          <button class="cm-btn sm" :disabled="!campSel" @click="bindCampaign(campSel)">Bind</button>
+          <button v-if="boundName" class="cm-btn sm alt" @click="bindCampaign('')">Unbind</button>
+        </div>
+        <p class="cm-hint">Binding a campaign turns on the table commands (/attack, /check, /char…) in that room — same as /dnd enable. Room admins only.</p>
+        <p v-if="campMsg" class="cm-hint">{{ campMsg }}</p>
       </div>
 
       <div class="cm-sec">Personas in {{ actions.currentServer()?.name }}</div>

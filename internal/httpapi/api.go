@@ -97,15 +97,19 @@ func (a *API) listCommands(w http.ResponseWriter, r *http.Request) {
 		{"name": "mood", "args": "😎 (empty clears)", "help": "Set your roster mood"},
 	}
 	if a.dnd.Enabled() {
+		// The dnd: group is shown by the composer only in rooms with a bound
+		// campaign; /dnd + /campaign (the switch itself) show everywhere.
 		cmds = append(cmds,
-			map[string]string{"name": "attack", "args": "the goblin with longsword", "help": "Attack from your sheet — rolls to hit; damage follows the DM's call"},
-			map[string]string{"name": "check", "args": "stealth | perception | str", "help": "Roll a skill or ability check from your sheet"},
-			map[string]string{"name": "save", "args": "dex | wis", "help": "Roll a saving throw from your sheet"},
-			map[string]string{"name": "cast", "args": "fireball [@5]", "help": "Cast a known spell — spends the slot"},
-			map[string]string{"name": "hp", "args": "-5 | +3 [character]", "help": "Apply damage or healing to a sheet"},
-			map[string]string{"name": "char", "args": "[character]", "help": "Open the character sheet panel"},
-			map[string]string{"name": "archive", "args": "", "help": "Archive the session — personas log and rotate (room admins)"},
-			map[string]string{"name": "resume", "args": "", "help": "Resume the program from the campaign log (room admins)"},
+			map[string]string{"name": "dnd", "args": "enable [campaign] | disable", "help": "Turn this room into a D&D table (binds a campaign — room admins)"},
+			map[string]string{"name": "campaign", "args": "| bind <name> | unbind", "help": "Show or change the room's campaign"},
+			map[string]string{"name": "attack", "args": "the goblin with longsword", "help": "Attack from your sheet — rolls to hit; damage follows the DM's call", "group": "dnd"},
+			map[string]string{"name": "check", "args": "stealth | perception | str", "help": "Roll a skill or ability check from your sheet", "group": "dnd"},
+			map[string]string{"name": "save", "args": "dex | wis", "help": "Roll a saving throw from your sheet", "group": "dnd"},
+			map[string]string{"name": "cast", "args": "fireball [@5]", "help": "Cast a known spell — spends the slot", "group": "dnd"},
+			map[string]string{"name": "hp", "args": "-5 | +3 [character]", "help": "Apply damage or healing to a sheet", "group": "dnd"},
+			map[string]string{"name": "char", "args": "[character]", "help": "Open the character sheet panel", "group": "dnd"},
+			map[string]string{"name": "archive", "args": "", "help": "Archive the session — personas log and rotate (room admins)", "group": "dnd"},
+			map[string]string{"name": "resume", "args": "", "help": "Resume the program from the campaign log (room admins)", "group": "dnd"},
 		)
 	}
 	writeJSON(w, 200, cmds)

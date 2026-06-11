@@ -28,7 +28,7 @@ import (
 
 // buildTag is surfaced at GET /api/version so a deploy's freshness is verifiable
 // (Dokploy has silently served stale binaries). Bump it with backend changes.
-const buildTag = "dh4-dnd-commands-2026-06-11"
+const buildTag = "dh4b-room-gating-2026-06-11"
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
