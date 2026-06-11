@@ -319,6 +319,21 @@ With D1–D6, the flow is composition, not new architecture:
   stays persona-level by design (the host can't know which cast member speaks
   before the line lands).
 
+- **✅ PROMOTION SHIPPED + PROVEN LIVE (2026-06-10 late night, host):** ratified
+  4/4 (owner default + override · per-character model stored · SRD 5.2 · one
+  room-agnostic session per character). `persona_host.characters` +
+  `default_promote` (party=true); addressing a promoted character runs THE
+  CHARACTER's own session — own memory, own loop — answers and beats attributed
+  to it, owner session untouched; truncated-stream retry rides along (empty
+  answer + no error → one re-ask). **Live:** Party introduced Thorin
+  Oakenshield (as_character beat), then "Thorin, a goblin lunges" coalesced
+  behind Party's turn and spawned `wi--75c59377--turn` ("You ARE Thorin…") —
+  Thorin answered from his own mind: *"I draw my axe and bring it down on the
+  foul creature. /roll 1d20+5"* — dice-honest on his first breath. DH-2 is
+  COMPLETE except per-character model routing (field stored, applied when the
+  spawn path takes a model param). The PC trinity awaits its third leg: DH-3
+  sheets.
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
