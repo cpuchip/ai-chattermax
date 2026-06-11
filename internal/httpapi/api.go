@@ -161,6 +161,41 @@ func (a *API) PersonaDMsHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"dms": orEmpty(dms)})
 }
 
+// PersonaProfileHandler is authed by a PERSONA KEY: the host that runs a
+// persona pushes identity changes here so the platform's name for the persona
+// never drifts from the host registry's (drift = the persona stops recognizing
+// its own name in addressing). Display name only — slug and grants stay
+// admin-owned. Public route (does its own key auth).
+func (a *API) PersonaProfileHandler(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		key = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	}
+	p, ok, err := a.store.ValidatePersonaKey(r.Context(), strings.TrimSpace(key))
+	if err != nil || !ok {
+		writeErr(w, 401, "invalid persona key")
+		return
+	}
+	var in struct {
+		DisplayName string `json:"displayName"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	name := strings.TrimSpace(in.DisplayName)
+	if name == "" || len([]rune(name)) > 64 {
+		writeErr(w, 400, "displayName must be 1-64 characters")
+		return
+	}
+	if name != p.DisplayName {
+		if err := a.store.SetPersonaDisplayName(r.Context(), p.ID, name); err != nil {
+			writeErr(w, 500, "could not update persona")
+			return
+		}
+	}
+	writeJSON(w, 200, map[string]string{"slug": p.Slug, "displayName": name})
+}
+
 // ConfigHandler is public — tells the client which auth mode is in effect.
 func (a *API) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"authMode": a.authMode})

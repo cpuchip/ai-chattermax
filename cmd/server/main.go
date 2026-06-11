@@ -113,8 +113,9 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"build":"` + buildTag + `"}`))
 	})
-	root.HandleFunc("GET /api/persona/rooms", api.PersonaRoomsHandler) // persona-key auth
-	root.HandleFunc("GET /api/persona/dms", api.PersonaDMsHandler)     // persona-key auth
+	root.HandleFunc("GET /api/persona/rooms", api.PersonaRoomsHandler)      // persona-key auth
+	root.HandleFunc("GET /api/persona/dms", api.PersonaDMsHandler)          // persona-key auth
+	root.HandleFunc("PATCH /api/persona/profile", api.PersonaProfileHandler) // persona-key auth
 	root.HandleFunc("POST /api/auth/login", authService.LoginHandler)
 	root.HandleFunc("POST /api/auth/logout", authService.LogoutHandler)
 	root.Handle("GET /gateway", gw)

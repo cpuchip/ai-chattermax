@@ -153,6 +153,15 @@ func (s *Store) SetPersonaRespondPolicy(ctx context.Context, personaID, policy s
 	return err
 }
 
+// SetPersonaDisplayName renames a persona's visible name. Driven by the
+// persona's HOST (key-authed): the host's registry is the source of truth for
+// who a persona is, and host↔platform name drift makes personas miss their own
+// addressing (the Codewright/Chattercode silence bug).
+func (s *Store) SetPersonaDisplayName(ctx context.Context, personaID, name string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE personas SET display_name = $2 WHERE id = $1`, personaID, name)
+	return err
+}
+
 // ValidatePersonaKey resolves a raw key to its persona (active, key not revoked),
 // touching last_used_at. ok=false when the key is unknown or revoked.
 func (s *Store) ValidatePersonaKey(ctx context.Context, raw string) (Persona, bool, error) {
