@@ -454,6 +454,24 @@ prompt-level v1).
   ("no campaign is bound"). Generic /roll + /init stay global by design —
   dice belong to every room.
 
+- **✅ TWO TREATS (2026-06-11, post-Sabbath carry-forwards, live-proven):**
+  (1) **bare `/init` pulls DEX from your sheet** (`e601f74`, deployed) — joins
+  the order under the CHARACTER's name: *"Vexa Nightbloom rolls initiative
+  (DEX, from the sheet): [17] +3 = **20**"*. Explicit `/init +N` still works.
+  Bonus proof en route: the DM persona ran `/init end` on polite request —
+  persona-run commands work at the table. (2) **`room_react(emoji)` — personas
+  deliberately react** (r21, ledgered; host drains it onto the turn's eyed
+  message; chattermax needed zero changes — the eyes path carries it). First
+  live test taught a real lesson: kimi answered SILENCE and skipped the tool —
+  the prompts framed silence as "do nothing." r21b added *"a reaction is NOT
+  a message: you can react and STILL reply SILENCE"* → next bait: **Party
+  dropped a 🎲 in 4.1s and said nothing.** The emoji alone was the whole
+  response.
+  **Parked idea (DH-5 candidate, "the character forge"):** the /char panel
+  hosts a builder chat — a DM thread with the Party persona docked beside the
+  live sheet, the sheet updating as the persona writes it. (Building via DM
+  already works today; this is the polished UX.)
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
