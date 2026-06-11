@@ -437,6 +437,23 @@ prompt-level v1).
   the table — the gate correctly refuses members), the prep-room ritual, and
   the FIRST REAL CAMPAIGN.
 
+- **✅ ROOM GATING (2026-06-11, `eca5e76` + dnd-tools `cf461ab`/0.2.1, both
+  deployed + live-verified):** Michael's "should rooms toggle dnd?" — ratified:
+  **the campaign binding IS the switch** (no second flag to fall out of sync).
+  `/dnd enable [name]` binds (bare form auto-names a campaign after the room;
+  created on the fly), `/dnd disable` unbinds (campaign + sheets kept);
+  `/campaign [bind <name>|unbind]` + a Settings "D&D Campaign" row (admin PUT
+  through the proxy) are the other two paths. Autocomplete shows the sheet
+  commands ONLY in bound rooms (registry `group: dnd` + client filter; /dnd +
+  /campaign always visible); the room header wears a 🎲 campaign chip; a
+  `program: state` frame refreshes clients on bind/unbind; **/archive +
+  /resume now refuse unbound rooms** (the program-frame leak, closed).
+  **Live gate proof (test account's own server, 0.2s):** /dnd enable → 🎲
+  "plays **general Campaign**" → /check reached the service (needs-a-sheet
+  error = functional) → /campaign 🗺 → /dnd disable 🚪 → /check refused
+  ("no campaign is bound"). Generic /roll + /init stay global by design —
+  dice belong to every room.
+
 ## Phasing + cost guards
 
 | Phase | Tracks | Where |
