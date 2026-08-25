@@ -6,8 +6,16 @@ package gateway
 import "github.com/cpuchip/ai-chattermax/internal/store"
 
 // Client→server frame types: "subscribe", "message", "history", "typing",
-// "reaction". Server→client frame types: "ready", "subscribed", "message",
-// "history", "presence", "reaction", "error".
+// "reaction", "mood". Server→client frame types: "ready", "message", "history",
+// "presence", "typing", "reaction", "mood", "cast", "program", "initiative",
+// "notification", "error".
+//
+// There is NO "subscribed" ack frame and there never was — an earlier draft of
+// this comment listed one and it survived here long enough to reach a
+// cross-stack protocol review (claks treaty v0.1, 2026-08-25) as a genuine
+// ambiguity. Subscribe is acknowledged by its effects: a "history" frame and a
+// roster-bearing "presence" frame. This comment is now the wire contract's
+// inventory; if a frame type is added, add it here in the same change.
 type clientFrame struct {
 	Type     string   `json:"type"`
 	Channel  string   `json:"channel,omitempty"`
