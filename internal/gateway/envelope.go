@@ -28,6 +28,13 @@ type clientFrame struct {
 	Op        string `json:"op,omitempty"` // add | remove
 	// Mood field (type == "mood").
 	Mood string `json:"mood,omitempty"`
+	// Echo (type == "message"): opt in to receiving your own message's
+	// broadcast frame — the authoritative server-assigned id/ts — instead of
+	// relying on optimistic rendering. Added for agent clients that need to
+	// correlate their own sends (claks treaty Q3, ruled by Michael 2026-08-25;
+	// chillacks converged on the same opt-in independently). Default stays
+	// false: the browser UI renders optimistically and never sets it.
+	Echo bool `json:"echo,omitempty"`
 	// Cast attribution (type == "message", personas only): speak as a named
 	// cast member — auto-created on first use (DH-2).
 	SubPersona string `json:"subPersona,omitempty"`

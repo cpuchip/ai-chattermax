@@ -89,3 +89,22 @@ func TestEnqueueAfterCloseIsSafe(t *testing.T) {
 	// must not panic (closed guard).
 	c.enqueue([]byte("x"))
 }
+
+// The echo policy in one place (claks treaty Q3, ruled 2026-08-25): the sender
+// is excluded by default (optimistic UI), included when a command transformed
+// the body, and included when the client opted in with "echo": true.
+func TestBroadcastExcept(t *testing.T) {
+	c := newTestClient("a")
+	if broadcastExcept(c, false, false) != c {
+		t.Error("plain message: sender should be excluded (optimistic UI default)")
+	}
+	if broadcastExcept(c, true, false) != nil {
+		t.Error("transformed message: sender must receive the authoritative result")
+	}
+	if broadcastExcept(c, false, true) != nil {
+		t.Error("echo opt-in: sender must receive its own broadcast frame")
+	}
+	if broadcastExcept(c, true, true) != nil {
+		t.Error("both: sender must receive the frame")
+	}
+}

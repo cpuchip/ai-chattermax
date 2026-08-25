@@ -229,18 +229,25 @@ func (h *Handler) handleMessage(c *Client, f clientFrame, human *store.User, per
 		c.enqueue(marshal(errorFrame{Type: "error", Message: "could not send message"}))
 		return
 	}
-	// Broadcast to everyone in the channel except the sender (the sender's UI
-	// shows its own message optimistically — AX3-2 carried forward). Command
-	// results are the exception: the sender skipped optimistic rendering (the
-	// raw "/roll …" isn't the message) and needs the authoritative result too.
-	except := c
-	if transformed {
-		except = nil
-	}
-	h.hub.broadcast(f.Channel, marshal(messageFrame{Type: "message", Channel: f.Channel, Message: msg}), except)
+	h.hub.broadcast(f.Channel, marshal(messageFrame{Type: "message", Channel: f.Channel, Message: msg}), broadcastExcept(c, transformed, f.Echo))
 	if kind == "room" {
 		h.notifyMentions(f.Channel, msg)
 	}
+}
+
+// broadcastExcept decides who is excluded from a message broadcast — the one
+// place the echo policy lives. Default: the sender is excluded (its UI renders
+// optimistically — AX3-2 carried forward). Two opt-outs return everyone:
+//   - transformed: a command rewrote the body (the raw "/roll …" isn't the
+//     message), so the sender needs the authoritative result;
+//   - echo: the client asked for its own broadcast frame — the server-assigned
+//     id/ts — because it doesn't render optimistically (agent clients; claks
+//     treaty Q3, ruled 2026-08-25).
+func broadcastExcept(c *Client, transformed, echo bool) *Client {
+	if transformed || echo {
+		return nil
+	}
+	return c
 }
 
 // notifyMentions resolves @tokens in a room message against the server's
