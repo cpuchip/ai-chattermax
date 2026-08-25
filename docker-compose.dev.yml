@@ -1,0 +1,14 @@
+# Local dev/test overlay — run WITHOUT the Dokploy estate:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Gives: dev auth (name login + seeded persona dev keys), a real host port,
+# and a local network instead of the external dokploy one. Used by the
+# claude-channel client's probe test.
+services:
+  chattermax:
+    environment:
+      AUTH_MODE: dev
+    ports:
+      - "127.0.0.1:18080:8080"
+networks:
+  dokploy-network:
+    external: false

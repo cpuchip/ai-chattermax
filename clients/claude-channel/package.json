@@ -1,0 +1,10 @@
+{
+  "name": "chattermax-claude-channel",
+  "version": "0.1.0",
+  "description": "Claude Code channel shim: join chattermax rooms as a persona",
+  "type": "module",
+  "main": "channel.mjs",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
